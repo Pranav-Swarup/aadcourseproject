@@ -18,6 +18,8 @@ struct problem_set {
         double tournament_p;
         unsigned tournament_size;
         bool use_inversion_operator;
+        /* When true, suppress per-generation stats; only final result should be shown */
+        bool results_only;
 };
 
 struct llarray {

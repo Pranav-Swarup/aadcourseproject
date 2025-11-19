@@ -6,6 +6,15 @@ main: main.o bin-packing.o population.o chromosome.o
 	$(GCC) $(GCC_FLAGS) main.o bin-packing.o population.o chromosome.o \
 		-o main.out
 
+genStats: genStats.o population.o chromosome.o
+	$(GCC) $(GCC_FLAGS) genStats.o population.o chromosome.o \
+		-o genStats.out
+
+# Lowercase alias: build a `genstats` executable for convenience
+genstats: genStats.o population.o chromosome.o
+	$(GCC) $(GCC_FLAGS) genStats.o population.o chromosome.o \
+		-o genstats
+
 bin-pack-test: bin-pack-test.o bin-packing.o population.o chromosome.o
 	$(GCC) $(GCC_FLAGS) bin-pack-test.o bin-packing.o population.o \
 		chromosome.o -o bin-pack-test.out
@@ -19,8 +28,8 @@ chrom-test: chrom-test.o chromosome.o
 		-o chrom-test.out
 
 clean:
-	rm main.o bin-packing.o population.o chromosome.o bin-pack-test.o \
-		pop-test.o chrom-test.o main.out bin-pack-test.out \
+	rm main.o genStats.o bin-packing.o population.o chromosome.o bin-pack-test.o \
+		pop-test.o chrom-test.o main.out genStats.out genstats bin-pack-test.out \
 		pop-test.out chrom-test.out
 
 main.o: main.c
@@ -37,6 +46,9 @@ chromosome.o: chromosome.c
 
 bin-pack-test.o: bin-pack-test.c
 	$(GCC) $(GCC_OBJ_FLAGS) bin-pack-test.c
+
+genStats.o: genStats.c
+	$(GCC) $(GCC_OBJ_FLAGS) genStats.c
 
 chrom-test.o: chrom-test.c
 	$(GCC) $(GCC_OBJ_FLAGS) chrom-test.c

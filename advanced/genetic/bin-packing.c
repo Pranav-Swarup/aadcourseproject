@@ -160,12 +160,16 @@ result_t *bin_packing(const prob_set_t *ps) {
         assert(ps->tournament_size > 0);
 
         clock_t start = clock();
-        printf("gen #\t # bins\t fitness\t cum. sec\n");
+        if (!ps->results_only) {
+                printf("gen #\t # bins\t fitness\t cum. sec\n");
+        }
         pop_t *pop = pop_rand_init(ps->bin_capacity, ps->population_size,
                                    ps->item_sizes, ps->num_items);
         const chrom_t *best = find_elite(pop);
         clock_t end = clock();
-        print_stats(1, best, CLOCK2SEC(start, end));
+        if (!ps->results_only) {
+                print_stats(1, best, CLOCK2SEC(start, end));
+        }
         for (size_t gen=1; gen<ps->max_generations; gen++) {
                 if ((best->fitness >= nextafter(1.0, 0.0))
                     || (best->num_bins <= ps->terminal_num_bins)
@@ -185,7 +189,9 @@ result_t *bin_packing(const prob_set_t *ps) {
                            ps->item_sizes, ps->num_items);
                 const chrom_t *new_best = find_elite(child);
                 end = clock();
-                print_stats(gen + 1, new_best, CLOCK2SEC(start, end));
+                if (!ps->results_only) {
+                        print_stats(gen + 1, new_best, CLOCK2SEC(start, end));
+                }
 #ifdef DEBUG_BIN
                 print_chrom(new_best);
 #endif
