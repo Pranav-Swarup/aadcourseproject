@@ -22,17 +22,11 @@ class Bin:
         return False
 
 def run_hk(items, k=K_DEFAULT):
-    """
-    Harmonic-k Algorithm (Adapted for the Analysis Engine).
-    Returns: (bins_used, list_of_bin_objects)
-    """
     # 1. Define Intervals
-    # intervals[0] = 1/2, intervals[1] = 1/3, ...
     intervals = [1.0 / (i + 2.0) for i in range(k - 1)]
     
-    # 2. Create Groups (List of Bin objects)
-    # bin_groups[0] is for items > 1/2
-    # bin_groups[k-1] is for small items
+    # bin_groups[0..k-2] store large items strictly
+    # bin_groups[k-1] stores small items (and overflow)
     bin_groups = [[] for _ in range(k)]
     
     print(f"\n[Hk] Starting Harmonic-{k}...")
@@ -45,23 +39,47 @@ def run_hk(items, k=K_DEFAULT):
                 group_idx = j
                 break
         
-        # Pack using First-Fit ONLY within that group
-        target_bins = bin_groups[group_idx]
         placed = False
         
-        for b in target_bins:
-            if b.try_add(item):
-                placed = True
-                break
+        # --- THE FIX STARTS HERE ---
         
-        if not placed:
-            # Create new bin of this specific harmonic type
-            new_bin = Bin(harmonic_type=group_idx + 1)
-            new_bin.try_add(item)
-            target_bins.append(new_bin)
-    
-    # 3. Flatten results for the report generator
-    # We merge all groups into a single list of bins
+        if group_idx == k - 1:
+            # IT IS A SMALL ITEM (The "Sand")
+            # Try to put it in ANY bin, starting from the largest item bins
+            # to fill their gaps.
+            for g_id in range(k):
+                for b in bin_groups[g_id]:
+                    if b.try_add(item):
+                        placed = True
+                        break # Break inner loop (bins)
+                if placed:
+                    break # Break outer loop (groups)
+            
+            # If still not placed, it goes into the dedicated small item bins
+            if not placed:
+                new_bin = Bin(harmonic_type=k) # Type k is small
+                new_bin.try_add(item)
+                bin_groups[k - 1].append(new_bin)
+
+        else:
+            # IT IS A LARGE ITEM (The "Rock")
+            # These must strictly go into their specific class bins 
+            # (standard Harmonic behavior to ensure density)
+            target_bins = bin_groups[group_idx]
+            
+            for b in target_bins:
+                if b.try_add(item):
+                    placed = True
+                    break
+            
+            if not placed:
+                new_bin = Bin(harmonic_type=group_idx + 1)
+                new_bin.try_add(item)
+                target_bins.append(new_bin)
+
+        # --- THE FIX ENDS HERE ---
+
+    # Flatten results
     all_bins = []
     for group in bin_groups:
         all_bins.extend(group)
