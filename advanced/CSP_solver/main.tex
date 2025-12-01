@@ -1,0 +1,119 @@
+\documentclass[11pt, a4paper]{article}
+
+% Packages for formatting and mathematics
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+% Geometry settings
+\geometry{left=25mm, right=25mm, top=25mm, bottom=25mm}
+
+% Theorem environments
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+\newtheorem{assumption}{Assumption}
+
+% Title Information
+\title{\textbf{The One-Cut Linear Programming Approach (Model II) for the Cutting Stock Problem}}
+\author{Based on the work of Harald Dyckhoff (1981)}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+The classical Gilmore-Gomory approach to the One-Dimensional Cutting Stock Problem relies on column generation to handle an exponential number of cutting patterns. Dyckhoff (1981) proposed an alternative formulation, "Model II", based on a recursive "One-Cut" principle. This document details the mathematical formulation of Model II, which uses a polynomial number of variables and constraints for many practical instances, allowing it to be solved using standard Linear Programming software without column generation.
+\end{abstract}
+
+\section{Problem Definition}
+We consider the \textbf{Standard Problem} of one-dimensional cutting stock optimization. 
+Given:
+\begin{itemize}
+    \item A set of standard stock lengths $S = \{s_1, \dots, s_K\}$.
+    \item A set of required order lengths (demand) $D = \{d_1, \dots, d_I\}$.
+    \item Demand requirements $N_l$ for each order length $l \in D$.
+    \item Costs $c_l$ associated with consuming a standard length $l \in S$.
+\end{itemize}
+The objective is to satisfy all demands $N_l$ while minimizing the total cost of stock used.
+
+\section{The One-Cut Concept}
+Unlike the classical approach (Model I), which defines a variable for every possible complex cutting pattern (e.g., "one bin contains 2 items of size A and 3 of size B"), Model II is based on a recursive cutting process.
+
+\begin{assumption}[The One-Cut Principle]
+The cutting process is modeled as an unlimited sequence of cutting operations. In each operation, a piece of length $k$ is divided into exactly two new pieces:
+\begin{enumerate}
+    \item A section of an order length $l \in D$ (where $l < k$).
+    \item A residual section of length $k - l$.
+\end{enumerate}
+\end{assumption}
+This simple structure $[k; l]$ allows complex patterns to be built successively. For example, cutting a length of 9 into $\{4, 2, 2, 1\}$ is modeled as:
+\[ [9; 4] \to \text{Residue } 5 \to [5; 2] \to \text{Residue } 3 \to [3; 2] \to \text{Residue } 1 \]
+
+\section{Mathematical Formulation (Model II)}
+
+\subsection{Sets and Parameters}
+Let $R$ be the set of all relevant residual lengths (lengths that can be produced by cutting order lengths from stock lengths).
+The model considers all lengths in the set $L = S \cup D \cup R$.
+
+\subsection{Decision Variables}
+The fundamental decision variables represent the number of times a specific "one-cut" is performed:
+\begin{equation}
+y_{k,l} \ge 0 \quad \text{for } k \in S \cup R, \ l \in D, \ l < k
+\end{equation}
+$y_{k,l}$ represents the number of pieces of length $k$ that are cut to produce one item of order length $l$ and a remainder of $k-l$.
+
+\subsection{Constraints}
+The model relies on \textbf{flow conservation (balance) constraints} for every length $l$ that is not a standard stock length (i.e., for all $l \in (D \cup R) \setminus S$).
+
+The logic is: \textit{Total Input of length $l$ $\ge$ Total Output of length $l$}.
+
+\begin{equation}
+\underbrace{\sum_{k \in A_l} y_{k,l}}_{\text{Production from larger cuts}} + \underbrace{\sum_{k \in B_l} y_{k+l, k}}_{\text{Production as residue}} \ge \underbrace{\sum_{k \in C_l} y_{l,k}}_{\text{Consumption for smaller cuts}} + \underbrace{N_l}_{\text{Final Demand}}
+\end{equation}
+
+Where the sets are defined as:
+\begin{itemize}
+    \item $A_l = \{k \in S \cup R \mid k > l\}$: Lengths $k$ that can be cut to produce $l$ as the primary order piece.
+    \item $B_l = \{k \in D \mid k+l \in S \cup R\}$: Lengths $k+l$ that, when cut into order size $k$, leave $l$ as the residue.
+    \item $C_l = \{k \in D \mid k < l\}$: Order lengths $k$ that can be cut \textit{from} length $l$.
+\end{itemize}
+
+\subsection{Objective Function}
+The objective is to minimize the net cost of standard lengths consumed.
+\begin{equation}
+\text{Minimize } Z = \sum_{l \in S} c_l \left( \sum_{k \in C_l} y_{l,k} - \sum_{k \in B_l} y_{k+l, k} \right)
+\end{equation}
+This calculates the net consumption of standard length $l$ as: (Total pieces of $l$ cut) minus (Total pieces of $l$ produced as residue from larger stock).
+
+\section{Comparison with Classical Model (Model I)}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Feature} & \textbf{Model I (Gilmore-Gomory)} & \textbf{Model II (Dyckhoff)} \\ \hline
+\textbf{Variables} & Cutting Patterns (Exponential) & One-Cuts (Polynomial) \\ \hline
+\textbf{Constraints} & $|D|$ (Number of order lengths) & $|D| + |R|$ (Orders + Residues) \\ \hline
+\textbf{Solution Method} & Column Generation & Standard Simplex \\ \hline
+\textbf{Structure} & Static Patterns & Dynamic Flow \\ \hline
+\end{tabular}
+\caption{Comparison of Approaches}
+\end{table}
+
+\subsection{Model Size Analysis}
+Model II generally has more constraints than Model I but drastically fewer variables.
+\begin{itemize}
+    \item \textbf{Model I:} Constraints $\approx I$. Variables $\approx$ Millions.
+    \item \textbf{Model II:} Constraints $\approx S_{max}$ (max standard length). Variables $\approx I \cdot (K + S_{max})$.
+\end{itemize}
+For problems with many stock lengths or a high ratio of demand sizes to stock size ($|D|/S_{max} \approx 1$), Model II can be significantly more efficient and easier to implement.
+
+\section{Conclusion}
+Dyckhoff's Model II offers a distinct advantage for cutting stock problems where the variety of stock lengths is high or where "trim loss" has value (reusable residue). By treating the cutting process as a flow of materials through "one-cut" transformations, it avoids the complexity of generating all combinatorial patterns, providing an exact solution using standard LP solvers.
+
+\end{document}

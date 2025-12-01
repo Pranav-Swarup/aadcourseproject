@@ -1,0 +1,1769 @@
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[utf8]{inputenc}    			  % Unicode input
+\usepackage{amsmath, amssymb, amsfonts}   % Math
+\usepackage{graphicx}           		  % Figures
+\usepackage{hyperref}           		  % Links
+\usepackage{geometry}           % Margins
+\usepackage{booktabs}           % Nicer tables
+\usepackage{xcolor}             % For colored text if needed
+\usepackage{enumitem}           % Better lists
+\usepackage{caption}            % Caption formatting
+\usepackage[T1]{fontenc}
+\usepackage{float}
+\usepackage{comment}
+\usepackage{fancyhdr} % For headers and footers
+\usepackage{booktabs} % For professional tables
+\usepackage{algorithm, algorithmic}
+\hypersetup{hidelinks}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{proof}{Proof}
+\newtheorem{corollary}{Corollary}
+
+% --- Page Setup ---
+
+\geometry{margin=1in}
+\pagestyle{fancy}
+\fancyhf{}
+
+\begin{document}
+	
+	\title{\textbf{A Comparative Analysis of Complexity and Approximation Schemes for the One-Dimensional Bin Packing Problem}}
+	\author{
+		Shreyas Ramasubramanian
+		\and
+		Shreyash Chandak
+		\and
+		Pranav Swarup Kumar
+		\and
+		Aman Jayesh
+		\and
+		Mukund Hebbar
+	}
+	\date{}
+	\maketitle
+
+    
+    Project Repository: \url{https://github.com/Pranav-Swarup/aadcourseproject}
+
+    
+	\begin{abstract}
+		
+		The \textbf{One-Dimensional Bin Packing Problem (1DBPP)} is a foundational challenge in combinatorial optimization, recognized as \textbf{NP-hard}. This report systematically analyzes the problem's complexity, approximation limitations, and state-of-the-art solution methods. We begin by establishing the theoretical baseline with a review of classic simple heuristics, including \textbf{First-Fit (FF)}, \textbf{Best-Fit (BF)}, and their decreasing counterparts, noting the tightest known worst-case approximation ratios, such as $11/9$ for the offline \textbf{First-Fit Decreasing (FFD)} strategy. Given the $3/2$ constant-factor lower bound for approximation, achieving better performance requires more sophisticated techniques. We then detail the construction and analysis of an \textbf{Asymptotic Polynomial-Time Approximation Scheme (APTAS)}, which achieves a near-optimal solution guarantee of $(1+\varepsilon) \cdot \mathrm{OPT} + O(1)$. Finally, we discuss recent advancements in additive approximation, tracing the development to the modern $\mathbf{\mathrm{OPT} + O(\log \mathrm{OPT})}$ bounds achieved by approaches from Rothvoß and Hoberg \& Rothvoß, which leverage Configuration Linear Programs and represent the current theoretical limit of bin packing research.
+		
+	\end{abstract}
+	
+	\newpage
+	\tableofcontents
+	\setcounter{tocdepth}{3}
+	\newpage
+	
+	\section{Introduction to the Problem}
+	
+	The One-Dimensional Bin Packing Problem (1DBPP) is a classical optimization problem, formally defined as follows: Given a list of items $L = \{l_1, l_2, \dots, l_n\}$ where each item $l_i$ has a size $s(l_i) \in (0, 1]$, and a collection of identical bins, each with a capacity of 1, the objective is to partition $L$ into the minimum number of subsets $B_1, B_2, \dots, B_m$ such that the sum of the sizes of items in each subset $B_j$ does not exceed 1. The minimal number of bins required for a list $L$ is denoted by $\mathrm{OPT}(L)$.
+	
+The 1D BPP is a fundamental abstraction that captures the core difficulty of 
+efficiently packing limited resources. Its real-world significance extends 
+across many industries, because any scenario involving the allocation of 
+items into fixed-capacity containers can often be mapped directly to a 
+Bin Packing instance. 
+
+\begin{itemize}[noitemsep]
+	
+	\item \textbf{Manufacturing and Industrial Engineering:}  
+	The classical \emph{Cutting Stock Problem} is a direct analogue: raw 
+	materials such as metal rods, wooden boards, paper rolls, or fabric 
+	sheets must be cut into required lengths or patterns.  
+	Efficient packing reduces scrap, decreases production cost, improves 
+	sustainability by minimizing waste, and directly impacts profit margins 
+	in large-scale operations (e.g., steel mills or textile plants).
+	
+	\item \textbf{Logistics and Transportation:}  
+	Packing heterogeneous items into shipping containers, pallets, or trucks 
+	can be modelled as Bin Packing.  
+	Better packing means fewer vehicles, reduced fuel consumption, improved 
+	route efficiency, and major cost savings in large distribution networks 
+	(e.g., Amazon, FedEx, international freight).  
+	Even airline baggage loading and ferry car-deck planning rely on 
+	variants of the problem.
+	
+	\item \textbf{Cloud Computing and Data Centers:}  
+	Virtual machine placement, CPU-time scheduling, and allocating workloads 
+	to servers all reduce to packing tasks with resource requirements 
+	(CPU, memory, bandwidth) into machines of fixed capacity.  
+	Efficient algorithms lower energy consumption, reduce the number of 
+	active servers, and improve service quality in systems like AWS, Google 
+	Cloud, or Kubernetes clusters.
+	
+	\item \textbf{Computer Systems and Memory Allocation:}  
+	File systems and operating systems often store files or memory blocks in 
+	fixed-sized units.  
+	Mapping variable-sized data blocks to fixed-size pages, or scheduling 
+	tasks onto limited execution slots, is naturally captured by Bin Packing.  
+	Better algorithms reduce fragmentation and improve throughput.
+	
+	\item \textbf{Telecommunications and Networking:}  
+	Data packets of varying sizes must be aggregated into frames or 
+	transmission blocks with capacity constraints.  
+	Efficient packing increases bandwidth utilization, reduces latency, and 
+	improves overall network throughput in systems such as 5G uplink 
+	scheduling or IP packet batching.
+	
+	\item \textbf{Finance and Portfolio Optimization:}  
+	When investments must be divided across fixed-capacity financial 
+	“buckets’’ such as risk categories or regulatory capital limits, 
+	assigning assets to these constrained containers can be viewed as a 
+	Bin Packing variant.  
+	This perspective helps reduce over-allocation and improves compliance 
+	with market or regulatory constraints.
+	
+	\item \textbf{Robotics and Automation:}  
+	Automated warehouses (e.g., Kiva robots in Amazon fulfillment centers) 
+	must pack items into bins on robots or shelves efficiently.  
+	Accurate packing minimizes robot travel time, increases throughput, and 
+	improves inventory density.
+	
+\end{itemize}
+
+Beyond these specific examples, the 1DBPP serves as a canonical NP-hard 
+optimization problem whose techniques, such as approximation schemes, 
+rounding methods, and combinatorial heuristics, form the algorithmic 
+foundation for many modern resource-allocation systems.
+
+	
+	The problem's theoretical significance stems from its inherent computational difficulty. Bin packing was among the first problems proved to be \textbf{NP-hard} by reduction from the \textsc{Partition} problem, meaning that finding an exact, optimal solution is intractable for large instances unless P=NP. This complexity necessitates the use of approximation algorithms, which are polynomial-time methods that guarantee a solution close to the optimal one.
+	
+	The field of bin packing approximation is broadly categorized by the nature of the approximation guarantee:
+	\begin{enumerate}
+		\item \textbf{Constant-Factor Approximation:} Algorithms, often simple greedy heuristics like First-Fit, that guarantee the solution $\mathrm{ALG}(L)$ is bounded by a constant factor of the optimum, i.e., $\mathrm{ALG}(L) \le c \cdot \mathrm{OPT}(L)$, where $c$ is typically less than 2.
+		\item \textbf{Asymptotic Polynomial-Time Approximation Schemes (APTAS):} Algorithms that achieve a factor of $(1+\varepsilon)$, where $\varepsilon > 0$ can be arbitrarily small, but at the cost of an additive term: $\mathrm{ALG}(L) \le (1+\varepsilon) \cdot \mathrm{OPT}(L) + O(1)$. The running time depends polynomially on the input size $n$ but exponentially on $1/\varepsilon$.
+		\item \textbf{Additive Approximation Schemes:} Recent, highly sophisticated methods that aim to minimize the additive error term, achieving results like $\mathrm{ALG}(L) \le \mathrm{OPT}(L) + O(\log \mathrm{OPT})$.
+	\end{enumerate}
+	
+	This report will follow the historical and logical progression of bin packing research. We will first examine the constant-factor bounds for classical heuristics. Subsequently, we detail the structural insights required to develop an APTAS, demonstrating how item rounding and dynamic programming overcome the inherent difficulty of the problem. Finally, we review the advanced techniques that have led to the current state-of-the-art results in additive approximation.
+	
+	\section{Proof of NP-hardness for the 1D Bin Packing Problem}
+	
+	\subsection{Optimization Problem Definition}
+	
+	The \textbf{one-dimensional Bin Packing Problem (BPP)} can be stated as follows.
+	
+	\paragraph{Instance.}
+	A finite multiset of items
+	\[
+	S = \{s_1, s_2, \ldots, s_n\}, \quad s_i \in (0,1].
+	\]
+	Each $s_i$ denotes the size of item $i$, and each bin has unit capacity.
+	
+	\paragraph{Objective.}
+	Partition $S$ into the minimum number of disjoint subsets (bins)
+	\[
+	B_1, B_2, \ldots, B_m
+	\]
+	such that, for every bin $B_j$,
+	\[
+	\sum_{s_i \in B_j} s_i \le 1.
+	\]
+	The goal is to minimize $m$. We denote the optimal number of bins by
+	\[
+	OPT(S) = \min \{\, m \mid \exists\, B_1, \ldots, B_m \text{ satisfying the above constraint} \,\}.
+	\]
+	
+	\subsection{Decision Problem Definition}
+	To analyze computational complexity, the optimization problem is converted into a decision problem, which asks a yes/no question instead of minimizing a quantity.
+	
+	\medskip
+	Formally, the decision version of the 1-D Bin Packing Problem is defined as follows.
+	
+	\paragraph{Instance.}
+	A multiset of items
+	\[
+	S = \{s_1, s_2, \ldots, s_n\}, \quad s_i \in (0,1],
+	\]
+	and an integer $k > 0$.
+	
+	\paragraph{Question.}
+	Does there exist a feasible packing of the items into at most $k$ bins such that
+	\[
+	\forall j \in \{1, \ldots, k\}, \quad \sum_{s_i \in B_j} s_i \le 1,
+	\]
+	and every item appears in exactly one bin?
+	
+	\medskip
+	We denote this decision problem as \textsc{BIN-PACK-DEC}. Formally:
+	\[
+	\textsc{BIN-PACK-DEC}(S, k) =
+	\begin{cases}
+		1, & \text{if } \exists \{B_1, \ldots, B_k\} \text{ with } \sum_{s_i \in B_j} s_i \le 1, \\[4pt]
+		0, & \text{otherwise.}
+	\end{cases}
+	\]
+	
+	\paragraph{Relationship between Optimization and Decision Versions.}
+	The optimization problem and its decision version are \emph{polynomially equivalent} in the sense that
+	\[
+	OPT(S) = \min \{\, k \mid \textsc{BIN-PACK-DEC}(S, k) = \text{``YES''} \,\}.
+	\]
+	Hence, if the decision problem could be solved in polynomial time, the optimal packing number could be obtained by binary search over $k \in \{1, \ldots, n\}$, implying a polynomial-time algorithm for the optimization form. Therefore, the decision version is NP-complete if and only if the optimization version is NP-hard.
+	
+	\subsection{Reduction from \textsc{Subset-Sum} to \textsc{Partition} to \textsc{Bin-Pack-Dec}}
+	
+	We establish the computational intractability of the one-dimensional Bin Packing problem by a chain of polynomial-time reductions.  We first reduce the classical \textsc{Subset-Sum} decision problem to \textsc{Partition}, and then reduce \textsc{Partition} to the decision version of Bin Packing (\textsc{Bin-Pack-Dec}).  By transitivity of polynomial reductions and standard NP-completeness results, this shows that \textsc{Bin-Pack-Dec} is NP-complete and the optimization version of Bin Packing is NP-hard.
+	
+	
+	The full reduction is illustrated in an animation made specifically for this report by our team.\footnote{\url{https://www.youtube.com/watch?v=xNtxqb9TEok}}
+	
+	
+	\subsubsection{Reduction \(\textsc{Subset\text{-}Sum}\le_p\textsc{Partition}\).}
+	Let \((a_1,\dots,a_n; t)\) be an instance of \textsc{Subset-Sum}, and denote \(A:=\sum_{i=1}^n a_i\).
+	
+	\paragraph{Preprocessing.} If \(t>A\) then the instance is trivially a NO instance; return any fixed NO instance of \textsc{Partition}. Otherwise, if \(t>A/2\) replace \(t\) by \(A-t\). This substitution is valid since a subset sums to \(t\) iff its complement sums to \(A-t\). After this step we have \(0\le t\le A/2\).
+	
+	\paragraph{Construction.} Define an instance of \textsc{Partition} by appending a single integer
+	\[
+	b \;:=\; A - 2t \;\in\; \mathbb{Z}_{\ge 0}
+	\]
+	to the original multiset.  That is, form
+	\[
+	S' \;=\; \{a_1,\dots,a_n,\, b\}.
+	\]
+	The total sum of \(S'\) is
+	\[
+	A' \;=\; \sum_{i=1}^n a_i + b \;=\; A + (A-2t) \;=\; 2(A-t),
+	\]
+	hence \(A'\) is even and \(A'/2 = A-t\).
+	
+	\paragraph{Correctness.}
+	\begin{itemize}
+		\item[(\(\Rightarrow\))] If there exists \(I\subseteq\{1,\dots,n\}\) with \(\sum_{i\in I} a_i = t\), then
+		\(I' := I\cup\{b\}\) satisfies
+		\[
+		\sum_{i\in I'} s_i = t + (A-2t) = A-t = A'/2,
+		\]
+		so \(S'\) admits a partition into two equal-sum subsets.
+		\item[(\(\Leftarrow\))] Conversely, suppose \(S'\) admits a partition into two subsets of sum \(A'/2 = A-t\).  The element \(b\) must lie in one of the two parts; removing \(b\) from that part yields a subset of \(\{a_1,\dots,a_n\}\) whose sum is
+		\[
+		(A-t) - b = (A-t) - (A-2t) = t,
+		\]
+		hence the original \textsc{Subset-Sum} instance is a YES instance.
+	\end{itemize}
+	
+	The mapping adds one integer and performs only arithmetic operations on the input integers; thus it runs in polynomial time and preserves YES/NO answers. Therefore \(\textsc{Subset\text{-}Sum}\le_p\textsc{Partition}\).
+	
+	
+	\subsubsection{Reduction \(\textsc{Partition}\le_p\textsc{Bin\text{-}Pack\text{-}Dec}\).}
+	Let \((a_1,\dots,a_n)\) be an instance of \textsc{Partition} and set \(A:=\sum_{i=1}^n a_i\).
+	
+	\paragraph{Preprocessing.} If there exists \(i\) with \(a_i > A/2\) then the PARTITION instance is immediately NO; return a fixed NO instance of \textsc{Bin-Pack-Dec}. Otherwise all \(a_i\le A/2\).
+	
+	\paragraph{Construction.} Create a Bin Packing instance by scaling:
+	\[
+	s_i \;:=\; \frac{2a_i}{A}\in(0,1],\qquad i=1,\dots,n,
+	\]
+	and set \(k:=2\). Note that
+	\[
+	\sum_{i=1}^n s_i = \frac{2}{A}\sum_{i=1}^n a_i = 2.
+	\]
+	
+	\paragraph{Correctness.}
+	\begin{itemize}
+		\item[(\(\Rightarrow\))] If the \(a_i\) admit a partition \(I\) with \(\sum_{i\in I} a_i = A/2\), then the corresponding items satisfy
+		\[
+		\sum_{i\in I} s_i = \frac{2}{A}\sum_{i\in I} a_i = 1,
+		\]
+		so \(I\) and its complement form two bins of capacity 1 and the Bin Packing decision instance is YES.
+		\item[(\(\Leftarrow\))] Conversely, if the \(s_i\) can be packed into two unit bins, each bin must have total size exactly 1 (since the grand total is 2). Scaling back by \(A/2\) yields a partition of the \(a_i\) into two subsets of sum \(A/2\).
+	\end{itemize}
+	
+	The scaling mapping is computable in polynomial time (rational arithmetic) and preserves YES/NO answers, hence \(\textsc{Partition}\le_p\textsc{Bin\text{-}Pack\text{-}Dec}\).
+	
+	\subsubsection{Transitivity and conclusion.}
+	Polynomial-time reducibility is transitive. Combining the two reductions above we obtain
+	\[
+	\textsc{Subset\text{-}Sum} \;\le_p\; \textsc{Partition} \;\le_p\; \textsc{Bin\text{-}Pack\text{-}Dec},
+	\]
+	whence \(\textsc{Subset\text{-}Sum} \le_p \textsc{Bin\text{-}Pack\text{-}Dec}\). Since \textsc{Subset-Sum} is NP-complete (see \cite{karp1972}), \textsc{Bin-Pack-Dec} is NP-hard. As \textsc{Bin-Pack-Dec} is in NP (a packing into \(k\) bins is polynomially verifiable), it follows that \textsc{Bin-Pack-Dec} is NP-complete (see \cite{gareyjohnson1979}). Consequently the optimization form of one-dimensional Bin Packing is NP-hard.
+	
+	
+	\subsection{Remarks on edge cases and polynomiality}
+	The reductions above include simple preprocessing to handle degenerate inputs.  In the reduction \(\textsc{Subset\text{-}Sum}\le_p\textsc{Partition}\) we replace the target \(t\) by \(A-t\) when \(t>A/2\); this step is valid because a subset sums to \(t\) iff its complement sums to \(A-t\). If \(t>A\) the SUBSET-SUM instance is trivially NO. The appended integer \(b=A-2t\) is non-negative by construction; if \(b=0\) the appended zero does not alter partitionability. In the reduction \(\textsc{Partition}\le_p\textsc{Bin\text{-}Pack\text{-}Dec}\) we first check whether any \(a_i>A/2\): if so, PARTITION is immediately NO and we may output a fixed NO instance of BIN-PACK-DEC. Otherwise every scaled size \(s_i=2a_i/A\) satisfies \(0<s_i\le1\), so the constructed Bin Packing instance is valid. All arithmetic performed (sums, subtraction, a single division by \(A\)) is polynomial-time with respect to the binary encoding of the input integers; the bit-length of intermediate integers remains polynomially bounded. Thus both mappings are polynomial-time reductions in the standard Turing model.
+	% -------------------------------------------------
+	
+	
+	\section{Classification of Heuristic Algorithms}
+	
+	As established in the project's complexity analysis, this problem is NP-hard, necessitating the use of approximation algorithms.
+	
+	We categorize the foundational heuristics based on information availability:
+	\begin{itemize}
+		\item \textbf{Online Algorithms (FF, BF):} The algorithm must pack item $s_i$ immediately without knowledge of subsequent items $s_{i+1}, \dots, s_n$.
+		\item \textbf{Offline Algorithms (FFD, BFD):} The algorithm possesses global knowledge of the input set $I$ and may sort or manipulate the sequence prior to packing.
+	\end{itemize}
+	
+	\subsection{First-Fit (FF)}
+	
+	\subsubsection{Mechanics and Complexity}
+	The First-Fit algorithm processes items in the order they arrive. For each item $s_i$, it scans the existing bins $B_1, B_2, \dots, B_k$ sequentially and places the item in the first bin $B_j$ such that the residual capacity $r(B_j) \ge s_i$. If no such bin exists, a new bin $B_{k+1}$ is opened.
+	
+	While a naive implementation requires $O(n^2)$ time (scanning all previous bins for every item), the algorithm can be optimized to $O(n \log n)$ using a segment tree or a similar data structure to query the first valid bin efficiently.
+	
+	\subsubsection{Theoretical Bounds}
+	The performance of First-Fit is bounded by an asymptotic approximation ratio of 1.7.
+	
+	\begin{theorem}[Approximation Ratio of FF]
+		For any list of items $L$, the number of bins used by First-Fit, $FF(L)$, satisfies:
+		$$ FF(L) \le 1.7 \cdot OPT(L) + 2 $$
+		where $OPT(L)$ is the optimal number of bins.
+	\end{theorem}
+	
+	\subsection{Best-Fit (BF)}
+	
+	\subsubsection{Mechanics and Complexity}
+	The Best-Fit algorithm attempts to minimize immediate space wastage. For an item $s_i$, it searches for a bin $B_j$ that minimizes the residual capacity $r(B_j) - s_i$, subject to $r(B_j) \ge s_i$. Ties are typically broken by choosing the lowest index.
+	
+	Like FF, a naive implementation is $O(n^2)$. However, by maintaining the bins in a balanced Binary Search Tree (BST) ordered by remaining capacity, the best-fitting bin can be identified and updated in $O(\log n)$ time, resulting in an overall complexity of $O(n \log n)$.
+	
+	\subsubsection{Theoretical Bounds}
+	Despite the strategic difference, Best-Fit shares the same worst-case asymptotic ratio as First-Fit.
+	
+	\begin{theorem}[Approximation Ratio of BF]
+		For any list of items $L$:
+		$$ BF(L) \le 1.7 \cdot OPT(L) + C $$
+	\end{theorem}
+	Although the worst-case bounds are identical, empirical average-case performance often differs due to the fragmentation effects discussed in Section \ref{sec:comparison}.
+	
+	\subsection{Decreasing Variants (FFD and BFD)}
+	
+	The offline heuristics differ from their online counterparts solely by the inclusion of a pre-processing step: the items are sorted in non-increasing order of size such that $s_1 \ge s_2 \ge \dots \ge s_n$.
+	
+	This strategy, analogous to placing "big rocks" into a jar before "sand," ensures that large items—which are hardest to pack—are processed when the maximum number of bins have maximum capacity available.
+	
+	\subsubsection{Theoretical Bounds}
+	Sorting the items significantly improves the approximation guarantee.
+	
+	\begin{theorem}[Johnson's Theorem, 1973]
+		For the First-Fit Decreasing (FFD) algorithm:
+		$$ FFD(L) \le \frac{11}{9} OPT(L) + 4 $$
+	\end{theorem}
+	
+	\begin{theorem}[Tight Bound, Dósa 2007]
+		The bound was later tightened to:
+		$$ FFD(L) \le \frac{11}{9} OPT(L) + \frac{6}{9} $$
+	\end{theorem}
+	
+	This implies an asymptotic approximation ratio of approximately $1.22$, a substantial improvement over the $1.7$ ratio of the online variants. Best-Fit Decreasing (BFD) achieves the same asymptotic bound of $11/9$.
+	
+	\subsection{Qualitative Comparison: The Fragmentation Trade-off} \label{sec:comparison}
+	
+	While FF and BF share identical worst-case asymptotic bounds ($1.7$), their internal packing dynamics differ fundamentally regarding space fragmentation.
+	
+	\subsubsection{The Best-Fit "Sand" Problem}
+	Best-Fit is designed to minimize the residual space in the chosen bin. While locally optimal, this strategy often creates bins that are nearly full but contain tiny, unusable gaps (often referred to as "sand" or "splinters").
+	\begin{itemize}
+		\item \textbf{Consequence:} These small gaps are often too small to accommodate even the smallest future items, effectively rendering that capacity wasted.
+	\end{itemize}
+	
+	\subsubsection{The First-Fit "Gap" Advantage}
+	First-Fit is oblivious to the "tightness" of the fit; it simply selects the first valid option.
+	\begin{itemize}
+		\item \textbf{Consequence:} This often leaves larger, contiguous chunks of free space in the earlier bins. These larger gaps are statistically more likely to accommodate future items than the fragmented slivers created by Best-Fit.
+	\end{itemize}
+	
+	\subsection{Heuristics Conclusion}
+	The foundational heuristics present a clear hierarchy of efficiency versus complexity. The move from Online (FF/BF) to Offline (FFD/BFD) yields a quantifiable improvement in the approximation ratio (from $1.7$ to $\approx 1.22$) at the cost of the $O(n \log n)$ sorting requirement. These algorithms serve as the baseline against which advanced structured heuristics, such as Harmonic-$k$, and meta-heuristics, such as the Grouping Genetic Algorithm, must be measured.
+	
+	\section{Polynomial-Time Approximation Schemes}
+	
+	
+	% -------------------------------------------------
+	\subsection{Introduction to Approximation Schemes}
+	The analysis of classical greedy algorithms demonstrates an inherent limitation: the optimal solution $\mathrm{OPT}(L)$ can be arbitrarily large, yet the ratio $\mathrm{ALG}(L)/\mathrm{OPT}(L)$ is bounded by a constant strictly greater than 1 (e.g., $1.222$ or $1.7$). Achieving a performance guarantee arbitrarily close to optimal, specifically a ratio of $(1+\varepsilon)$ for any $\varepsilon > 0$, requires a fundamentally different algorithmic approach.
+	
+	A Polynomial-Time Approximation Scheme (PTAS) achieves an approximation ratio of $1+\varepsilon$ for any fixed $\varepsilon > 0$. However, due to the volume-based lower bound $\sum s_i \le \mathrm{OPT}(L)$, the solution $\mathrm{ALG}(L)$ can still be $1+\varepsilon$ times larger than $\mathrm{OPT}(L)$, even if $\mathrm{OPT}(L)$ is small. For instance, if $\mathrm{OPT}(L) = 2$ and $\varepsilon = 0.1$, $\mathrm{ALG}(L)$ might be $\lfloor 2(1.1) \rfloor = 2$.
+	
+	The Bin Packing Problem admits an **Asymptotic Polynomial-Time Approximation Scheme (APTAS)**, which relaxes the requirement by allowing a small additive error term:
+	$$\mathrm{APTAS}(L) \le (1+\varepsilon) \cdot \mathrm{OPT}(L) + O(1)$$
+	where the constant $O(1)$ depends only on $1/\varepsilon$ and not on the input size $n$ or $\mathrm{OPT}(L)$. The $O(1)$ term ensures that for large instances (where $\mathrm{OPT}(L) \to \infty$), the performance guarantee approaches $1+\varepsilon$. This is the best we can hope for in polynomial time, as no PTAS is known for 1DBPP.
+	
+	The key to developing an APTAS lies in the observation that items of very small size contribute significantly to the total number of items ($n$) but contribute very little to the total volume (and thus $\mathrm{OPT}(L)$). The APTAS approach systematically handles the complexity introduced by large items using exact methods, while managing the small items with efficient, bounded-error heuristics. This is achieved through the technique of rounding and configuration enumeration.
+	
+	
+	% -------------------------------------------------
+	
+	% The following summary of classical heuristics duplicates earlier material
+	% in this document. See Section "Classification of Heuristic Algorithms"
+	% for a full treatment of FF/BF/FFD/BFD and their theoretical bounds.
+	A brief pointer: classical greedy and decreasing heuristics (FF/BF/FFD/BFD)
+	are summarized earlier; we continue with the fundamental $3/2$ hardness
+	baseline that motivates asymptotic schemes.
+	
+	
+	\subsection{The  $3/2$ Inapproximability baseline \\ (Partition \(\to\) Bin Packing)}\label{sec:baseline-32}
+	
+	Before discussing PTAS and APTAS algorithms for Bin Packing, it is
+	crucial to understand the \emph{baseline limitation} on what any
+	polynomial-time approximation algorithm can achieve.  A simple but powerful idea: even extremely restricted instances of
+	Bin Packing are already expressive enough to encode the
+	\textsc{Partition} problem. This yields the fundamental barrier that no
+	polynomial-time algorithm can guarantee an approximation ratio smaller
+	than $3/2$ unless $\mathrm{P}=\mathrm{NP}$. \cite{unibristol}
+	
+	\subsection{Why Partition appears inside Bin Packing}
+	Consider the decision version of \textsc{Partition}: given positive
+	integers $a_1,\dots,a_n$, determine whether they can be split into two
+	subsets with equal sum.  The intuitive connection to Bin Packing is that
+	Partition asks: 
+	\[
+	\text{Can we pack everything into \emph{two} perfectly filled bins?}
+	\]
+	If the total sum is $A$, then this is the same as asking whether we can
+	fill two bins of capacity $A/2$ exactly. By scaling these numbers so that $A/2$ becomes bin capacity~$1$, the Partition instance becomes a Bin Packing instance whose optimal solution is either
+	\[
+	\mathrm{Opt}=2 \quad (\text{YES instance})
+	\qquad\text{or}\qquad
+	\mathrm{Opt}\ge 3 \quad (\text{NO instance}).
+	\]
+	
+	Thus, distinguishing between $\mathrm{Opt}=2$ and $\mathrm{Opt}\ge 3$
+	would solve Partition.
+	
+	\subsection{Why a $(3/2-\delta)$-approximation would decide Partition}
+	Suppose there exists a Bin Packing algorithm $A$ running in polynomial
+	time and achieving approximation factor $\rho<3/2$. We show this implies a
+	polynomial-time solution for \textsc{Partition}, which is believed
+	unlikely.
+	
+	Recall the crucial gap from the reduction:
+	\[
+	\mathrm{Opt} = 2 \quad\text{or}\quad \mathrm{Opt} \ge 3.
+	\]
+	These are the only two possibilities for the special instances derived
+	from Partition.
+	
+	Now run the hypothetical $\rho$-approximation algorithm $A$ on this
+	instance. We obtain:
+	\[
+	A(I) \le \rho\cdot \mathrm{Opt}(I).
+	\]
+	
+	
+	\paragraph{Case 1: Partition instance is a YES instance.}
+	Then $\mathrm{Opt}=2$, so the algorithm must return
+	\[
+	A(I) \le \rho \cdot 2 < 3.
+	\]
+	Since $A(I)$ is an integer, we must have $A(I)=2$.
+	
+	\paragraph{Case 2: Partition instance is a NO instance.}
+	Then $\mathrm{Opt}\ge 3$, so
+	\[
+	A(I) \ge 3.
+	\]
+	
+	Thus,
+	\[
+	A(I) =
+	\begin{cases}
+		2, &\text{if Partition is YES},\\
+		\ge 3, &\text{if Partition is NO}.
+	\end{cases}
+	\]
+	This perfectly distinguishes YES from NO, solving Partition in
+	polynomial time. Therefore, such an approximation ratio $\rho<3/2$
+	cannot exist unless $\mathrm{P}=\mathrm{NP}$.
+	
+	
+	\subsection{Why the number $3/2$ is the magic threshold}
+	The number $3/2$ arises precisely because:
+	\[
+	\frac{3}{2}\cdot 2 = 3.
+	\]
+	This is the point where the ``YES-branch'' of the approximation is allowed
+	to touch the ``NO-branch'' without giving away the answer to Partition.
+	
+	If the approximation factor were any smaller than $3/2$, even by an
+	arbitrarily tiny amount:
+	\[
+	\rho = \frac{3}{2} - \delta,
+	\]
+	then:
+	\[
+	\rho\cdot 2 = 3 - 2\delta < 3,
+	\]
+	forcing the algorithm to return $2$ bins on YES instances and $\ge 3$
+	bins on NO instances, solving Partition.
+	
+	Thus $3/2$ is the \emph{minimal} ratio consistent with respecting NP-hard
+	structure. Everything better than this would collapse $\mathrm{P}$ and
+	$\mathrm{NP}$.
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.8\linewidth]{asymptoticerror1}
+		\caption{Approximation Ratio Bounds}
+		\label{fig:asymptoticerror1}
+	\end{figure}
+	
+	
+	
+	\subsection{Interpretation}
+	This reduction sets a ``hard floor'' in the landscape of approximation
+	algorithms for Bin Packing. Any algorithm with a better-than-$3/2$
+	guarantee would violate standard complexity assumptions. Therefore, the
+	only hope for improving performance is by relaxing the problem variant
+	(asymptotic vs.\ classical guarantee), or allowing $(1+\varepsilon)$
+	approximation at the cost of time exponential in $1/\varepsilon$ which
+	is exactly the domain of PTAS and APTAS algorithms that we study in the
+	following sections.
+	
+	\newpage
+	
+	
+	\subsection{Special Cases Admitting Polynomial-Time Solutions}
+	\label{sec:poly-cases}
+	
+	Before presenting the APTAS itself, we highlight that
+	certain restricted versions of Bin Packing are solvable in polynomial
+	time. These special cases help reveal the structure that an APTAS will
+	exploit. In particular, if we assume that
+	\begin{enumerate}[label=(\alph*)]
+		\item there are only \emph{constantly many distinct item sizes}, and
+		\item only a \emph{constant number of items} can fit in any bin,
+	\end{enumerate}
+	then the number of feasible bin configurations (or \emph{types}) becomes
+	bounded by a constant. In this setting, one may enumerate all bin types,
+	count how many bins of each type are needed to cover the items, and solve
+	the resulting instance optimally in polynomial time.
+	
+	This observation is the conceptual base for the APTAS: if we can
+	\emph{transform} a general instance into one that behaves like this
+	restricted case (without losing much optimality), then we can solve the
+	transformed instance exactly and transfer the solution back to the
+	original with only a small loss.
+	
+	
+	\section{APTAS for Bin Packing}
+	
+	\subsection{Intuitive Motivation}
+	
+	The baseline hardness barrier (Section~\ref{sec:baseline-32}) shows that
+	no polynomial-time algorithm can approximate Bin Packing within a factor
+	smaller than $3/2$ unless $\mathrm{P}=\mathrm{NP}$. Thus, to obtain
+	near-optimal packings with guarantees arbitrarily close to~1, we must
+	accept algorithms whose running time may depend super-polynomially on
+	$1/\varepsilon$ for accuracy parameter $\varepsilon>0$. The goal is to
+	carefully structure such algorithms so they remain polynomial in $n$ for
+	any fixed~$\varepsilon$.
+	
+	Bin Packing has enough internal structure that we can 'adjust' an arbitrary instance into one resembling the polynomial-time special case: only a constant number of significant item sizes remain, and every bin contains only a small, bounded number of large items. This transformation, performed with controlled rounding and grouping, leads to an asymptotically optimal solution.
+	
+	
+	\begin{definition}[Asymptotic PTAS (APTAS)]
+		For every fixed $\varepsilon>0$, an \emph{asymptotic polynomial-time
+			approximation scheme} for Bin Packing is a family of algorithms
+		$\{A_\varepsilon\}_{\varepsilon>0}$ satisfying:
+		\[
+		A_\varepsilon(I) \;\le\; (1+\varepsilon)\,\mathrm{OPT}(I)\;+\;O(1),
+		\]
+		where each $A_\varepsilon$ runs in time polynomial in the number of
+		items~$n$ (but not necessarily in $1/\varepsilon$). The additive $O(1)$
+		term is independent of~$n$ and is negligible for large instances.
+	\end{definition}
+	
+	
+	
+	% ---------------------------------------------------------------
+	\subsection{The Four-Step APTAS Framework}
+	\label{sec:aptas-four-steps}
+	
+	We present APTAS via four conceptual steps. Below we expand
+	these steps with intuitive explanations, the precise reasoning behind
+	them, and how each contributes to the global strategy. \cite{unibristol}
+	
+	\newpage
+	
+	% ---------------------
+	\subsubsection{Step 1: Remove the Smaller Items}
+	
+	\paragraph{Motivation.}
+	Small items (those of size $<\varepsilon/2$) are the primary source of
+	irregular leftover gaps inside bins. Large items, in contrast, largely
+	determine the bin structure. By temporarily discarding small items, we
+	extract the “skeleton’’ of the instance and obtain a much more structured
+	problem.
+	
+	\paragraph{Procedure.}
+	Partition the items into:
+	\[
+	L = \{\,i : s_i \ge \varepsilon/2\,\},\qquad
+	S = \{\,i : s_i < \varepsilon/2\,\}.
+	\]
+	Solve the problem for the large items only. Later, reinsert small items
+	greedily into the bins created for~$L$.
+	
+	\paragraph{Impact.}
+	Analytically, either the small items fit into the existing bins (ideal
+	case), or almost all bins are sufficiently full that only a constant
+	number of extra bins are needed. This is key to achieving the
+	asymptotic $(1+\varepsilon)$ guarantee.
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.8\linewidth]{E:/binpacking/media/images/approx/Step1_SmallItems_ManimCE_v0.19.0}
+		\caption{Step 1 APTAS for Bin-Packing}
+		\label{fig:step1smallitemsmanimcev0}
+	\end{figure}
+	
+	
+	
+	% ---------------------
+	\subsubsection{Step 2: Linear Grouping and Rounding}
+	
+	
+	\paragraph{Motivation.}
+	Even after isolating the large items, there may still be many distinct
+	sizes. We want to \emph{compress} these sizes into only
+	$O(1/\varepsilon^2)$ distinct classes, allowing us to use the
+	polynomial-time special-case algorithm.
+	
+	\paragraph{Procedure.}
+	Sort $L$ in non-increasing order and divide it into groups of size~$k$,
+	where $k$ is chosen so that $k \le \varepsilon\cdot\mathrm{OPT}$.
+	Within each group, \emph{round up} each item to the largest item in that
+	group, forming a rounded multiset $L'$. This reduces the number of
+	distinct sizes dramatically.
+	
+	\paragraph{Impact.}
+	Rounding up only increases bin usage by at most $k$ bins, which is
+	carefully tuned to be at most $\varepsilon\cdot\mathrm{OPT}$. We see this with stacked bars, showing each group collapsing upward to
+	a uniform height.
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.7\linewidth]{step2aptas}
+		\caption{Step 2 APTAS for Bin-Packing}
+		\label{fig:step2aptas}
+	\end{figure}
+	
+	
+	
+	% ---------------------
+	\subsubsection{Step 3: Solve the Bounded-Type Instance Exactly}
+	
+	\paragraph{Motivation.}
+	Once rounding is complete, the instance has:
+	\[
+	c_s = O(1/\varepsilon^2) \quad \text{distinct sizes},\qquad
+	c_b = O(1/\varepsilon) \quad \text{items per bin}.
+	\]
+	The number of possible bin types is now constant:
+	\[
+	(c_b + 1)^{c_s} = O_\varepsilon(1).
+	\]
+	This reduces the problem to choosing nonnegative integers
+	$x_1,\dots,x_T$ giving how many bins of each type to use.
+	
+	\paragraph{Procedure.}
+	Enumerate all feasible bin configurations (each is a small integer vector
+	indicating how many items of each size the bin contains). Then solve the
+	exact counting problem:
+	\[
+	\sum_{t=1}^T x_t \cdot \text{(type $t$ vector)} = \text{(item multiplicity vector)}.
+	\]
+	A dynamic program or bounded-integer linear program (size depending only
+	on $\varepsilon$) finds an \emph{optimal} solution.
+	
+	\paragraph{Impact.}
+	This solves the rounded instance \emph{exactly}, something that would be
+	impossible in general.
+	
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.7\linewidth]{E:/binpacking/media/images/approx/Step3_BinTypes_ManimCE_v0.19.0}
+		\caption{Step 3 APTAS for Bin-Packing}
+		\label{fig:step3bintypesmanimcev0}
+	\end{figure}
+	
+	
+	% ---------------------
+	\subsubsection{Step 4: Unround and Reinsert Small Items}
+	
+	\paragraph{Motivation.}
+	All rounding has made items artificially \emph{larger}, so the exact
+	solution covers a superset of the true instance. We need to map this
+	solution back down to the original items while incurring only a small
+	additive loss.
+	
+	\paragraph{Procedure.}
+	Replace each rounded-up large item in $L'$ by the corresponding original
+	item in $L$ (which only makes bins easier to fill). Then insert small
+	items $S$ greedily. If any bins overflow, create new bins, but the earlier
+	analysis guarantees that at most a constant number of such bins are
+	needed.
+	
+	\paragraph{Impact.}
+	The total number of extra bins introduced by both rounding and small-item
+	reinsertion is at most $1 + \varepsilon\,\mathrm{OPT}$, completing the
+	APTAS guarantee. We show this visually as a “compression–release”
+	diagram: bins expand during rounding and then shrink back during
+	unrounding and reinsertion.
+	
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.8\linewidth]{E:/binpacking/media/images/something/Step4_Unrounding_ManimCE_v0.19.0}
+		\caption{Step 4 APTAS for Bin-Packing}
+		\label{fig:step4unroundingmanimcev0}
+	\end{figure}
+	
+	
+	
+	% -------------------------------------------------
+	\section{Approximation Schemes Beyond APTAS}
+	\label{sec:approx-schemes}
+	
+	Having fully developed the APTAS machinery in the previous section, we now
+	briefly place it within the larger hierarchy of approximation schemes for
+	Bin Packing. The following notions capture different trade-offs between
+	accuracy and running time, and help situate why the APTAS (rather than a
+	PTAS or FPTAS) is the “correct’’ achievable target for this problem.
+	
+	% -------------------------------------------------
+	\subsection{PTAS (Polynomial-Time Approximation Scheme)}
+	
+	A \textbf{PTAS} provides, for every fixed $\varepsilon>0$, an algorithm
+	$A_\varepsilon$ satisfying
+	\[
+	A_\varepsilon(I) \le (1+\varepsilon)\,\mathrm{OPT}(I),
+	\]
+	with running time polynomial in $n$ but potentially \emph{super-polynomial
+		in $1/\varepsilon$}.  
+	
+	For general NP-hard optimization problems this is a strong guarantee:
+	one may get arbitrarily close to optimality, but high precision may be
+	computationally expensive. In Bin Packing specifically, a PTAS would be
+	an exact generalization of the APTAS guarantee, except without the additive
+	$O(1)$ slack.
+	
+	However, as seen from the baseline hardness results (Section~\ref{sec:baseline-32}),
+	removing that additive slack altogether is impossible under standard
+	complexity assumptions.
+	
+	% -------------------------------------------------
+	\subsection{Why No FPTAS Exists}
+	
+	A \textbf{Fully Polynomial-Time Approximation Scheme (FPTAS)} would require
+	running time polynomial both in $n$ and in $1/\varepsilon$.  
+	For Bin Packing this is provably impossible unless $\mathrm{P}=\mathrm{NP}$:
+	
+	\begin{theorem}[Garey--Johnson~\cite{gareyjohnson1979}]
+		Bin Packing does not admit an FPTAS unless $\mathrm{P}=\mathrm{NP}$.
+	\end{theorem}
+	
+	Conceptually, an FPTAS would be “too efficient’’—fast enough to resolve the
+	YES/NO gap induced by reductions from \textsc{Partition}.  
+	Therefore, even though we can approximate arbitrarily well, we \emph{cannot}
+	do so while keeping running time polynomial in $1/\varepsilon$.
+	
+	% -------------------------------------------------
+	\subsection{AFPTAS (Asymptotic FPTAS)}
+	
+	An \textbf{Asymptotic FPTAS (AFPTAS)} strikes the middle ground. It achieves
+	\[
+	A_\varepsilon(I) \le (1+\varepsilon)\,\mathrm{OPT}(I) + O(1),
+	\]
+	just like an APTAS, but with running time
+	\[
+	\mathrm{poly}(n, 1/\varepsilon).
+	\]
+	
+	Thus the AFPTAS improves the computational dependence on $\varepsilon$,
+	while still allowing the additive $O(1)$ term that is unavoidable in the
+	Bin Packing setting. This class of schemes is algorithmically deeper,
+	typically requiring linear grouping, LP-based configuration techniques, or
+	entropy rounding ideas; see Jansen and Klein~\cite{jansen2013} for a
+	notable construction.
+	
+	% -------------------------------------------------
+	\subsection{Hierarchy of Schemes at a Glance}
+	
+	To summarize the relationships:
+	\[
+	\text{FPTAS} \;\subsetneq\; \text{PTAS} \;\subsetneq\; \text{APTAS}
+	\quad\text{and}\quad
+	\text{FPTAS} \;\subsetneq\; \text{AFPTAS} \approx \text{APTAS}.
+	\]
+	
+	\begin{itemize}
+		\item A PTAS gives exact $(1+\varepsilon)$ but may take time
+		$n^{O(1/\varepsilon)}$ or worse.
+		\item An FPTAS is impossible for Bin Packing.
+		\item An APTAS gives the best achievable guarantee:
+		$(1+\varepsilon)\mathrm{OPT}+O(1)$.
+		\item An AFPTAS matches this guarantee while being polynomial in
+		$1/\varepsilon$.
+	\end{itemize}
+	
+	This hierarchy reinforces why the APTAS was historically such a milestone
+	for Bin Packing, and why its AFPTAS refinements continue to be an active
+	area of research.
+	
+	
+	
+	% -------------------------------------------------
+	% -------------------------------------------------
+	\section{Worked Example: APTAS on a Medium-Sized Instance}
+	\label{sec:worked-example}
+	
+	To illustrate how the APTAS operates in practice, consider the following
+	Bin Packing instance of eight items (sizes in $(0,1]$):
+	\[
+	I = \{0.52,\; 0.49,\; 0.48,\; 0.47,\; 0.31,\; 0.30,\; 0.29,\; 0.18\}.
+	\]
+	
+	% -------------------------------------------------
+	\subsection{Step 1: Classify Small and Large Items}
+	
+	Fix $\varepsilon = 0.25$ for demonstration.  
+	Large items are those $\ge \varepsilon/2 = 0.125$; all items in $I$ qualify,
+	so for this instance $S=\emptyset$ and $L=I$.
+	
+	Although this is a degenerate case for small-item removal, it makes the
+	remaining steps clearer: all structure comes from grouping and rounding.
+	
+	% -------------------------------------------------
+	\subsection{Step 2: Linear Grouping and Rounding}
+	
+	Sort $L$ in decreasing order (already sorted above).  
+	Set group size
+	\[
+	k = \left\lceil \varepsilon \cdot |L| \right\rceil
+	= \lceil 0.25 \cdot 8 \rceil = 2.
+	\]
+	
+	Thus we divide the sequence into groups:
+	\[
+	G_1=\{0.52, 0.49\},\quad
+	G_2=\{0.48, 0.47\},\quad
+	G_3=\{0.31, 0.30\},\quad
+	G_4=\{0.29, 0.18\}.
+	\]
+	
+	We round each group \emph{up} to the largest element in that group:
+	\[
+	G_1 \to 0.52,\quad
+	G_2 \to 0.48,\quad
+	G_3 \to 0.31,\quad
+	G_4 \to 0.29.
+	\]
+	
+	This yields the rounded instance
+	\[
+	L'=\{0.52,0.52,\; 0.48,0.48,\; 0.31,0.31,\; 0.29,0.29\},
+	\]
+	with only \emph{four distinct sizes}.
+	
+	Grouping ensures that the rounding overhead is bounded by at most one
+	rounded item per group, hence by at most $k=2$ bins overall.
+	
+	% -------------------------------------------------
+	\subsection{Step 3: Enumerating Feasible Bin Types}
+	
+	Since all rounded items are at least $0.29$, a bin can contain at most
+	three items. The (relevant) possible bin types using the four rounded sizes include, for example:
+	\[
+	\begin{array}{ccl}
+		0.52 + 0.48 & (=1.00) & (\text{two-item type})\\
+		0.52 + 0.31 & (=0.83) \\
+		0.52 + 0.29 & (=0.81) \\
+		0.48 + 0.31 & (=0.79) \\
+		0.48 + 0.29 & (=0.77) \\
+		0.31 + 0.31 + 0.29 & (=0.91) \\
+		0.31 + 0.29 + 0.29 & (=0.89)
+	\end{array}
+	\]
+	(There are only a few combinations to check because there are only four size classes
+	and at most three items per bin.)
+	
+	Solving the exact covering problem for $L'$ (via a small ILP or DP) yields an optimal rounded packing:
+	\[
+	\begin{array}{rl}
+		\text{Bin A:} & 0.52 + 0.48 = 1.00 \\
+		\text{Bin B:} & 0.52 + 0.48 = 1.00 \\
+		\text{Bin C:} & 0.31 + 0.31 + 0.29 = 0.91 \\
+		\text{Bin D:} & 0.29
+	\end{array}
+	\]
+	
+	Thus $\mathrm{OPT}(L') = 4$ (note: the previous version mistakenly omitted one rounded item and reported 3).
+	
+	% -------------------------------------------------
+	\subsection{Step 4: Unrounding and Final Packing}
+	
+	We now replace rounded items with their original items. Because rounding
+	increased sizes, un-rounding can only make packing easier. Map each rounded
+	item back to one original item from the same group:
+	\[
+	\begin{array}{l}
+		\text{The two rounded }0.52\text{s} \mapsto \{0.52,\,0.49\} \\
+		\text{The two rounded }0.48\text{s} \mapsto \{0.48,\,0.47\} \\
+		\text{The two rounded }0.31\text{s} \mapsto \{0.31,\,0.30\} \\
+		\text{The two rounded }0.29\text{s} \mapsto \{0.29,\,0.18\}
+	\end{array}
+	\]
+	
+	Applying these replacements to the rounded packing above (one feasible choice of assignment) gives:
+	\[
+	\begin{array}{rl}
+		\text{Bin 1:} & 0.52 + 0.48 = 1.00 \\
+		\text{Bin 2:} & 0.49 + 0.47 = 0.96 \\
+		\text{Bin 3:} & 0.31 + 0.30 + 0.29 = 0.90 \\
+		\text{Bin 4:} & 0.18
+	\end{array}
+	\]
+	
+	All bins respect capacity, so the APTAS produces:
+	\[
+	A_\varepsilon(I) = 4,
+	\qquad
+	\text{and in fact } \mathrm{OPT}(I) = 4.
+	\]
+	
+	This satisfies the guarantee
+	\[
+	A_\varepsilon(I) \le (1+\varepsilon)\,\mathrm{OPT}(I) + O(1)
+	\]
+	with $\varepsilon = 0.25$. (In this instance the algorithm attains the optimum.)
+	
+	
+	% -------------------------------------------------
+	
+	
+	\section{Karmarkar-Karp Algorithm Introduction: The 30-Year Benchmark}
+	
+	The one-dimensional Bin Packing Problem (1DBPP) asks for the minimum number of unit-capacity bins to pack $n$ items, each with a size $s_i \in (0, 1]$. While simple offline heuristics like First-Fit Decreasing (FFD) are fast ($O(n \log n)$) and provide good multiplicative guarantees (e.g., $A(I) \le \frac{11}{9} OPT(I) + 4$), the frontier of theoretical research focuses on \textit{additive} guarantees.
+	
+	For over three decades, the seminal 1982 algorithm by Narendra Karmarkar and Richard M. Karp (KK82) stood as the undisputed benchmark in this area. It was the first algorithm to break from multiplicative errors and provide a polynomial-time solution with a provably small \textit{additive} error, a monumental breakthrough at the time.
+	
+	The KK82 algorithm achieves a final packing $A(I)$ using at most:
+	\begin{equation}
+		A(I) \le OPT(I) + O(\log^2 OPT(I))
+	\end{equation}
+	bins. This $O(\log^2 OPT)$ term—an error that scales polylogarithmically with the \textit{optimal solution size} rather than linearly—established the additive integrality gap for the standard LP relaxation. This result became the "benchmark to beat" until the work of Rothvoß (2013) and Hoberg \& Rothvoß (2015), which refined the bound to $O(\log OPT)$.
+	
+	This analysis deconstructs the core mechanisms of the KK82 algorithm to explain \textit{how} this $O(\log^2 OPT)$ guarantee is achieved.
+	
+	% The Gilmore-Gomory (configuration) LP relaxation is discussed earlier
+	% in Section "Preliminaries: The Gilmore-Gomory LP Relaxation" (KK82).
+	% To avoid repetition, we refer the reader to that section and continue
+	% with the discrepancy-based techniques introduced by Rothvo\ss.
+
+The LP relaxation is formulated as follows:
+
+\begin{equation*}
+	\begin{array}{lll}
+		\text{minimize} & \sum_{p \in \mathcal{P}} x_p & \text{(Minimize total bins)} \\
+		\text{subject to} & \sum_{p \in \mathcal{P}} t_{pi} x_p \ge b_i & \text{(for each item type } i=1..m\text{)} \\
+		& x_p \ge 0 & \text{(for all patterns } p \in \mathcal{P}\text{)}
+	\end{array}
+\end{equation*}
+
+\subsection{The Computational Challenge}
+The LP has two main computational hurdles:
+\begin{enumerate}
+	\item \textbf{Exponential Variables:} The number of patterns $N = |\mathcal{P}|$ can be exponential in the number of items $n$.
+	\item \textbf{Many Constraints:} The number of constraints $m$ (distinct item types) can be as large as $n$.
+\end{enumerate}
+
+\subsection{The Core Problem}
+The LP yields an optimal \textit{fractional} solution, $OPT_f$ (also denoted $lin(I)$). The entire challenge is to "round" this fractional solution $\mathbf{x}$ into an integer packing $A(I)$ while introducing only a tiny additive error. The $O(\log^2 OPT)$ term is, precisely, the "price of integrality" paid during this rounding process.
+
+\subsection{The KK Mechanism (Part 1): Taming the Constraints via Grouping}
+
+The first challenge, having $m=n$ constraints, is handled by a pre-processing step that reduces the number of distinct item types. This is a "main innovation" of the KK82 paper.
+
+\subsubsection{Elimination of Small Items}
+First, a threshold $g$ (e.g., $g = 1/n$) is chosen, and all "small" items $s_i \le g$ are removed and set aside. This is critical because it ensures the remaining items are "large," meaning any bin can contain at most $1/g$ (e.g., $n$) of them. These small items are added back at the very end, fitting into existing gaps.
+
+\subsubsection{Geometric Grouping}
+The remaining $n'$ items are "grouped" to reduce the number of distinct types $m$ from $O(n')$ to $O(\text{poly}(\log n'))$. This works in two phases:
+\begin{enumerate}
+	\item \textbf{Logarithmic Partition:} Items are partitioned into groups $I_r$ based on their size, where $I_r = \{ \text{items } i \mid s_i \in (1/2^{r+1}, 1/2^r] \}$.
+	\item \textbf{Linear Grouping:} Within \textit{each} group $I_r$, items are sorted and further partitioned into $k$ buckets (where $k$ is a parameter). The sizes of all items in a bucket are then rounded \textit{up} to the size of the largest item in that bucket.
+\end{enumerate}
+
+This grouping process creates a new, simpler instance $K$ with a manageable (polynomial) number of item types $m$. The "cost" of this rounding-up adds a small, bounded error in each iteration, which contributes to the final $O(\log^2 OPT)$ term.
+
+\subsection{The KK Mechanism (Part 2): Solving the Exponential LP}
+
+After grouping, the LP has $m$ (polynomial) constraints, but still $N$ (exponential) variables. KK82 solves this using a now-classic approach based on duality.
+
+\subsubsection{The Dual LP}
+The algorithm considers the \textit{dual} of the Configuration LP. By duality principles, variables and constraints are swapped. The dual has $m$ variables (polynomial) but $N$ constraints (exponential).
+
+\subsubsection{The Ellipsoid Method \& The Separation Oracle}
+An LP with a polynomial number of variables and an exponential number of constraints can be solved in polynomial time using the \textbf{Ellipsoid Method}, provided one can supply a \textbf{Separation Oracle}.
+The oracle is given a potential solution $\mathbf{y}$ (a vector of $m$ dual variables) and must either certify that $\mathbf{y}$ is feasible (satisfies all $N$ constraints) or return a constraint $p$ that is violated.
+
+\subsubsection{The "Aha!" moment: The Oracle is the Knapsack Problem}
+The dual constraints are of the form $A_p^T \mathbf{y} \le 1$ for each pattern $p$. The oracle's job is to find a pattern $p$ that \textit{maximizes} $A_p^T \mathbf{y}$.
+
+If we interpret the dual variables $y_i$ as the \textbf{"profit"} or "value" of packing an item of type $i$, and the item size $s_i$ as its \textbf{"weight"}, then $\max_p (A_p^T \mathbf{y})$ is the task of finding the \textbf{maximum-profit} set of items that can fit into a single bin (i.e., total weight $\le 1$). This is the exact definition of the \textbf{0/1 Knapsack Problem}.
+
+\subsubsection{The Full Stack}
+The Knapsack Problem is NP-hard. However, it admits a Fully Polynomial-Time Approximation Scheme (FPTAS). The Ellipsoid Method is robust enough to work with an \textit{approximate} separation oracle. Therefore, the LP is solved by "stacking" these algorithms: the Ellipsoid Method is called, and at each of its steps, it calls the Knapsack FPTAS to act as its oracle.
+
+\subsection{The KK Mechanism (Part 3): Iterative Rounding \& The $O(\log^2 OPT)$ Guarantee}
+
+Solving the LP gives a fractional solution $\mathbf{x}$. The final step is to round this $\mathbf{x}$ to an integer packing. KK82 does this using an iterative process that runs in a loop for $t = O(\log n)$ iterations.
+
+\subsubsection{The Iterative Loop}
+In each iteration $i$:
+\begin{enumerate}
+	\item \textbf{Start with Residual Instance:} Begin with the set of items $I_i$ remaining from the last iteration.
+	\item \textbf{Group:} Apply the Geometric Grouping to $I_i$, creating instance $J_i$ and a "discard" instance $J'_i$. The items in $J'_i$ are packed into new bins, creating the first source of additive error, $Y_i$.
+	\item \textbf{Solve LP:} Solve the Configuration LP for instance $J_i$ to get a fractional solution $\mathbf{x}$.
+	\item \textbf{Partial Rounding:} "Buy" the integer part of the solution. For every pattern $p$ where $x_p \ge 1$, pack $\lfloor x_p \rfloor$ bins with that pattern. These items are permanently removed.
+	\item \textbf{Define New Residual:} The \textit{new} residual instance $I_{i+1}$ consists of all items that were part of the fractional remainders, $\mathbf{x} - \lfloor \mathbf{x} \rfloor$.
+	\item \textbf{Repeat:} The key insight is that the \textit{total size} of the residual problem decreases geometrically at each step, guaranteeing the loop terminates in $O(\log n)$ iterations.
+\end{enumerate}
+
+\subsection{Source of the $O(\log^2 OPT)$ Guarantee}
+The final solution cost is the sum of the fractional optimum ($lin(I) \le OPT(I)$) plus all the bins added during the iterative process.
+\begin{itemize}
+	\item \textbf{Number of Iterations:} $t = O(\log n)$.
+	\item \textbf{Error per Iteration:} In each iteration $i$, the algorithm adds $Y_i$ bins from packing the "grouped-out" items. This error is bounded by $Y_i \le O(\log(1/g))$, which is $O(\log n)$.
+	\item \textbf{Total Additive Error:}
+	\
+\end{itemize}
+Since $n$ is bounded by $OPT(I)$ (as $s_i > g$), $\log n$ is $O(\log OPT(I))$. This gives the final $OPT(I) + O(\log^2 OPT(I))$ guarantee.
+
+\subsection{The KK82 Legacy}
+
+The Karmarkar-Karp algorithm provides a canonical example of the trade-off between complexity and solution quality.
+\begin{itemize}
+	\item \textbf{FFD (Phase 1):} $O(n \log n)$ time, but a \textit{multiplicative} error ($\frac{11}{9} OPT$).
+	\item \textbf{KK82 (Phase 2):} A high-order polynomial time (e.g., $O(n^8)$) but achieves a "near-perfect" \textit{additive} error ($OPT + O(\log^2 OPT)$).
+\end{itemize}
+
+The Karmarkar-Karp algorithm is not a single function but a complex, multi-stage "stack" of advanced techniques. Its $O(\log^2 n)$ bound on the integrality gap, derived from its specific iterative rounding technique, created a theoretical barrier that stood for 30 years until the recent introduction of discrepancy theory methods by Rothvoß.
+
+% --- END PREAMBLE ---
+
+\section{Advanced Bin Packing Algorithms: Rothvoß (2013) to Hoberg \& Rothvoß (2015)}
+
+\subsection{Introduction: The Quest for Additive Guarantees}
+
+The one-dimensional Bin Packing Problem (1DBPP) asks for the minimum number of unit-capacity bins required to pack a given set of items with sizes $s_1, \dots, s_n \in (0, 1]$. Its NP-hardness necessitates approximation algorithms. While simple heuristics like First-Fit Decreasing (FFD) offer good \emph{multiplicative} guarantees ($\approx 1.222 \cdot OPT + \text{const}$), a significant line of theoretical research seeks \emph{additive} guarantees of the form $OPT + C$, where $C$ is a small, slowly growing function, ideally independent of the number of items $n$.
+
+For over 30 years, the landmark result was the \textbf{Karmarkar-Karp (KK82) algorithm}, achieving $OPT_f + O(\log^2 OPT_f)$ bins, where $OPT_f$ is the optimal value of the fractional relaxation. This review focuses on the two papers that finally improved this bound.
+
+\subsection{Preliminaries: The Gilmore-Gomory LP Relaxation}
+
+Both KK82 and the subsequent breakthroughs leverage the \textbf{Gilmore-Gomory Linear Program (LP) relaxation}.
+\begin{itemize}
+	\item \textbf{Structure:} The LP operates over \emph{patterns}. A pattern $p$ is a multiset of items that fits into a single bin, represented as a vector $p \in \mathbb{Z}_{\ge 0}^n$ where $p_i$ is the count of item $i$, such that $\sum_{i=1}^n p_i s_i \le 1$.
+	\item Let $\mathcal{P}$ be the set of all possible valid patterns. The LP formulation is:
+	$$ \min \sum_{p \in \mathcal{P}} x_p \quad \text{subject to} \quad \sum_{p \in \mathcal{P}} p_i x_p \ge b_i \quad \forall i=1, \dots, n, \quad x_p \ge 0 \quad \forall p \in \mathcal{P} $$
+	Here, $b_i$ is the required number of items of type $i$, and $x_p$ is a variable representing how many times pattern $p$ is used.
+	\item \textbf{Challenge:} The number of possible patterns $|\mathcal{P}|$ can be exponential in $n$. However, the LP has only $n$ constraints. Efficient algorithms (like Ellipsoid method variants or Column Generation, referenced in KK82 and Rothvoß's papers) can find an approximate solution $x$ with cost $\le OPT_f + \delta$ in polynomial time (polynomial in $n$, $\sum b_i$, and $1/\delta$). Often, one works with a basic feasible solution, which has at most $n$ non-zero $x_p$ values.
+	\item \textbf{The Core Problem:} The LP yields a fractional optimum $OPT_f$. The challenge is to round the fractional vector $x$ (with potentially millions of components $x_p$) into an integer vector $y$ (representing an actual packing) such that the cost $\sum y_p$ is very close to $\sum x_p$, specifically $\sum y_p \le \sum x_p + C$.
+\end{itemize}
+
+\subsection{The 2013 Breakthrough: Rothvoß}
+
+Rothvoß's 2013 paper, ``Approximating Bin Packing within $O(\log OPT \cdot \log \log OPT)$ bins,'' was the first improvement over KK82. It introduced discrepancy theory as a new rounding tool.
+
+\subsection{The New Tool: Discrepancy Theory via Lovett-Meka (LM12)}
+Instead of KK82's rounding, Rothvoß employed the \textbf{Constructive Partial Coloring Lemma} (Lovett \& Meka, 2012).
+\begin{itemize}
+	\item \textbf{Intuition:} Discrepancy theory aims to find a coloring (e.g., $\pm 1$) for elements of a ground set such that for any given subset, the sum of colors is small (the set is ``balanced''). The LM12 algorithm provides a constructive, randomized way to achieve this, generalized to rounding fractional vectors.
+	\item \textbf{The LM12 Guarantee (Lemma 1 in Rothvoß 2013):} Given a starting fractional point $x \in [0, 1]^m$ and constraints defined by vectors $v_1, \dots, v_n$, the algorithm finds a new point $y \in [0, 1]^m$ such that:
+	\begin{enumerate}
+		\item \textbf{Near-Integrality:} At least half of the coordinates $y_j$ are very close to 0 or 1 ($y_j \in [0, \delta] \cup [1-\delta, 1]$).
+		\item \textbf{Low Error (Discrepancy):} The change in each constraint value is bounded: $|v_i y - v_i x| \le \lambda_i ||v_i||_2$.
+	\end{enumerate}
+\end{itemize}
+
+\noindent
+\textbf{The Entropy Condition:} The correctness of the rounding depends on choosing error parameters $\lambda_i$ that satisfy the ``entropy condition'' derived from Lovett-Meka. This condition ensures that the randomized walk (Brownian motion) does not hit the error boundaries too frequently before the variables become integral. Mathematically, for a system with $m$ variables, the parameters must satisfy:
+\begin{equation}
+	\sum_{i=1}^n \exp(-\lambda_i^2 / 16) \le \frac{m}{16}
+\end{equation}
+Rothvoß (2013) applies this lemma iteratively. In each of the $O(\log m)$ iterations, half of the remaining fractional variables are rounded to $0$ or $1$, while the cumulative error on each constraint $i$ is carefully controlled by the $\lambda_i \|A_i\|_2$ term.
+
+\noindent
+Here is the formal statement of the lemma:
+
+\begin{lemma}[Constructive Partial Coloring, Lovett-Meka 2012]
+	\label{lem:lovett-meka}
+	Let $A \in \mathbb{R}^{n \times m}$ be a matrix, $x \in [0, 1]^m$ be a fractional solution, and $\lambda_1, \dots, \lambda_n > 0$ be parameters satisfying $\sum_{i=1}^n e^{-\lambda_i^2 / 16} \le \frac{m}{16}$.
+	
+	There exists a polynomial-time randomized algorithm that finds a point $y \in [0, 1]^m$ such that:
+	\begin{enumerate}
+		\item \textbf{(Low Discrepancy):} The error on each constraint is bounded by the $L_2$-norm of the corresponding row:
+		$$ |(Ay)_i - (Ax)_i| \le \lambda_i \|A_i\|_2 \quad \forall i=1, \dots, n $$
+		\item \textbf{(Near-Integrality):} For a given $\delta > 0$, at least half of the coordinates are nearly integral. For $m' \ge (1 - \delta)m$ coordinates $j \in [m]$, we have:
+		$$ y_j \in [0, \delta] \cup [1 - \delta, 1] $$
+	\end{enumerate}
+\end{lemma}
+
+\subsection{The Core Challenge: ``Spiky'' Patterns and the $L_2$-Norm}
+The effectiveness of LM12 hinges on the error bound $|v_i y - v_i x| \le \lambda_i ||v_i||_2$. Rothvoß's insight was that this bound is problematic if $||v_i||_2$ is large.
+\begin{itemize}
+	\item In the bin packing context, the vectors $v_i$ correspond to (sums of) rows of the pattern matrix $A$. The $i$-th row $A_i$ lists how many times item $i$ appears in each pattern.
+	\item A large $||A_i||_2 = \sqrt{\sum_p (A_{ip})^2}$ norm occurs if there are patterns $p$ with large entries $A_{ip}$ — i.e., patterns containing many copies of item $i$.
+	\item This is the \textbf{``spiky pattern''} problem: a pattern $p$ heavily utilizing a single item type $i$ (large $A_{ip}$) causes a large $L_2$-norm for row $i$, leading to a potentially large rounding error for that item's constraint. This was particularly problematic for very small items where $A_{ip}$ could be large.
+\end{itemize}
+
+\subsection{The Novel Technique: ``Gluing''}
+To mitigate the large $L_2$-norms caused by spiky patterns, Rothvoß introduced \textbf{``gluing''} as a pre-processing step (detailed in \textbf{Section 5.2 of the 2013 paper}) before rounding.
+\begin{itemize}
+	\item \textbf{Trigger:} Gluing is applied when a pattern $p$ (with fractional value $x_p = r/q$) uses many copies ($p_i$) of a \emph{small} item $i$, such that the total size $p_i s_i$ exceeds a threshold (e.g., related to $1/\text{polylog}(n)$). Specifically, if $p_i \ge w \cdot q$ for carefully chosen $w, q$.
+	\item \textbf{Mechanism (Figure 1b):} It takes $w \cdot q$ copies of item $i$ within pattern $p$ and conceptually ``glues'' them into $q$ copies of a \emph{new, artificial, larger item} $i'$ with size $s_{i'} = w \cdot s_i$. The pattern $p$ is modified to use $q$ copies of $i'$ instead. The fractional value $x_p$ remains $r/q$.
+	\item \textbf{Purpose:} This transformation replaces a large entry $A_{ip}$ (for the small item $i$) with smaller entries ($q$) for the new, larger item $i'$. This ``smooths'' the matrix rows associated with small items, reducing their $L_2$-norms and making the LM12 rounding effective.
+	\item \textbf{Limitation:} As noted by Hoberg \& Rothvoß (2015), this gluing procedure in the 2013 paper was complex and primarily effective only for items below a size threshold of $1/\text{polylog}(n)$.
+\end{itemize}
+
+\subsection{The Full Algorithm (Section 6) and Result}
+The Rothvoß (2013) algorithm iterates $O(\log n)$ times. Each iteration involves the following steps, justified by the source's corresponding proofs:
+\begin{enumerate}
+	\item \textbf{Discretize:} Utilizing \textbf{Lemma 10 of Rothvoß (2013)}, the algorithm ensures $x_p$ values are multiples of some $1/q = 1/\text{polylog}(n)$.
+	\item \textbf{Group \& Glue:} By applying the ``gluing'' technique established in \textbf{Lemma 8 (Rothvoß, 2013)}, the instance is made ``well-spread'' for small items (i.e., ensuring $A_{ip}$ is small relative to the total count $A_i x$ for small $i$).
+	\item \textbf{Round:} As detailed in \textbf{Theorem 9 (Rothvoß, 2013)}, the algorithm applies the LM12 procedure to the modified matrix/solution, rounding half the remaining fractional variables with controlled error. The error analysis in Theorem 9 carefully bounds the discrepancy based on the properties achieved by gluing.
+\end{enumerate}
+The complexity arose because the ``Group \& Glue'' step introduced an error term related to the parameters used (specifically, involving $\log(1/\delta)$ where $\delta$ related to $1/\text{polylog}(n)$), contributing an $O(\log \log OPT)$ factor to the error accumulated in each of the $O(\log OPT)$ iterations.
+The final guarantee: $OPT_f + O(\log OPT \cdot \log \log OPT)$. The runtime is polynomial, dominated by solving the LP and the LM12 calls.
+
+\section{The 2015 Refinement: Hoberg \& Rothvoß}
+
+The 2015 Hoberg \& Rothvoß paper, ``A Logarithmic Additive Integrality Gap for Bin Packing,'' achieved the tighter $O(\log OPT)$ bound by introducing a fundamentally cleaner structure.
+
+\subsection{The Core Idea: 2-Stage Packing (Section 2)}
+Instead of fixing the spiky pattern problem after the fact, they reformulated the problem to avoid it structurally.
+\begin{enumerate}
+	\item \textbf{Stage 1: Items $\rightarrow$ Containers.} Define a \textbf{container} $C$ as any valid multiset of original items that fits in a bin ($C \in \mathbb{Z}_{\ge 0}^n$ with $\sum s_i C_i \le 1$). Let $s(C)$ be its total size.
+	\item \textbf{Stage 2: Containers $\rightarrow$ Bins.} Define a \textbf{pattern} $p$ now as a multiset of \emph{containers} that fits in a bin ($p \in \mathbb{Z}_{\ge 0}^{\mathcal{C}}$ where $\mathcal{C}$ is the set of all containers, such that $\sum_{C \in \mathcal{C}} p_C s(C) \le 1$).
+	\item \textbf{Intermediate Variables:} They introduce integer variables $y_C$ representing the number of times container $C$ is ``created'' or used.
+	\item \textbf{Packing Graphs (Figure 1):} The process is modeled with two bipartite graphs:
+	\begin{itemize}
+		\item $G_1(b, y)$: Matches original items (demand $b_i$) to available slots within the chosen containers (supply $y_C \cdot C_i$).
+		\item $G_2(x, y)$: Matches the chosen containers (demand $y_C$) to slots within the final fractional patterns (supply $x_p \cdot p_C$).
+	\end{itemize}
+	\item \textbf{Deficiency:} The objective is implicitly tied to minimizing a ``deficiency'' metric. Formally, for a packing graph $G=(V_l \cup V_r, E)$, the deficiency is defined as the minimum weight of left-nodes that cannot be covered by any valid assignment $a$:
+	\begin{equation}
+		\text{def}(G) := \min_{a} \sum_{v \in V_l} s(v) \cdot (\text{mult}(v) - a(\delta(v)))
+	\end{equation}
+	The algorithm's goal is to ensure that rounding fractional values in $x$ increases this deficiency by only a constant amount $O(1)$.
+	
+\end{enumerate}
+
+\noindent
+This 2-stage packing concept is formalized into a new, structured LP relaxation. Let $\mathcal{C}$ be the set of all valid "containers" (multisets of items that fit in a bin), and let $\mathcal{P_C}$ be the set of all valid "patterns" of containers (multisets of containers that fit in a bin).
+
+The Hoberg \& Rothvoß (2015) algorithm finds a fractional solution $(x, y)$ to the following system:
+
+\begin{center}
+	\textbf{The 2-Stage Packing Formulation}
+\end{center}
+\begin{align}
+	\min \quad & \sum_{p \in \mathcal{P_C}} x_p \label{eq:obj} \\
+	\text{s.t.} \quad & \sum_{C \in \mathcal{C}} y_C \cdot C_i \ge b_i & \forall \text{ items } i \label{eq:stage1} \\
+	& \sum_{p \in \mathcal{P_C}} x_p \cdot p_C \ge y_C & \forall \text{ containers } C \in \mathcal{C} \label{eq:stage2} \\
+	& x_p \ge 0, \quad y_C \ge 0 & \forall p \in \mathcal{P_C}, C \in \mathcal{C} \nonumber
+\end{align}
+
+\noindent
+Here, $y_C$ represents the (fractional) number of times container $C$ is "created", and $x_p$ is the number of times pattern $p$ is used.
+\begin{itemize}
+	\item Equation \eqref{eq:stage1} ensures that all original items $b_i$ are packed into containers (corresponds to graph $G_1$).
+	\item Equation \eqref{eq:stage2} ensures that all created containers $y_C$ are packed into the final bins (corresponds to graph $G_2$).
+\end{itemize}
+The key insight is that the rounding algorithm is only applied to Equation \eqref{eq:stage2}, which packs containers. As noted, a pattern $p$ simply cannot contain an arbitrarily large number of copies ($p_C$) of the same container $C$. This structurally avoids the "spiky" $L_2$-norm problem, as the matrix for \eqref{eq:stage2} is inherently "smooth".
+
+\subsection{The Final Algorithm and Bound}
+The Hoberg \& Rothvoß (2015) algorithm also iterates $O(\log n)$ times:
+\begin{enumerate}
+	\item \textbf{Rebuild Containers:} Detailed in \textbf{Section 3 of Hoberg \& Rothvoß (2015)}, this step replaces the complex ``gluing''. It involves sophisticated grouping (\textbf{Lemma 10} of the source) and reassigning/combining containers (\textbf{Lemma 13} of the source) within the existing fractional patterns $x$.
+	\par\medskip
+	\noindent\emph{The Shadow Matrix:} To bound the rounding error, the authors construct a \textbf{Shadow Incidence Matrix} $\tilde{A}$. Unlike the standard matrix $A$, $\tilde{A}$ retains the history of grouped containers, ensuring that for any container class $\sigma$, the $L_1$ norm of the rows remains sufficiently large ($||\tilde{A}_C||_1 \ge \sigma^{-1/2}$). This structural property allows the Lovett-Meka algorithm to round variables with very low discrepancy, specifically bounding the $L_2$ norm of the error vectors.
+	
+	\item \textbf{Round:} As described in \textbf{Section 4}, the algorithm applies the \emph{same} LM12 algorithm (specifically \textbf{Claim 14}) to the fractional pattern vector $x$, using constraints derived from the (rebuilt) container incidence matrix $A$.
+\end{enumerate}
+
+\subsection{Why it's Cleaner and Better}
+The 2-stage structure provides several advantages leading to the cleaner analysis and tighter bound:
+\begin{itemize}
+	\item \textbf{Inherent Smoothness:} The objects being packed into the final patterns are now ``containers.'' Since containers must have size $s(C) \le 1$, a pattern $p$ simply cannot contain an arbitrarily large number of copies ($p_C$) of the same container $C$. The large entries in the matrix rows that plagued the 2013 analysis for tiny items are structurally avoided when dealing with containers.
+	\item \textbf{Simplified Pre-processing:} The ``Rebuilding Containers'' step (Section 3 of the source) achieves the necessary ``well-spread'' properties more elegantly and robustly than the 2013 ``gluing,'' which had limitations on item size. The 2015 paper notes their procedure works even for items/containers up to size $\Omega(1)$.
+	\item \textbf{Error Reduction ($O(1)$ Deficiency):} Because the matrix $A$ (representing container patterns) is inherently better behaved, the LM12 rounding step (Section 4) incurs only a constant $O(1)$ increase in total deficiency per iteration, as proven in \textbf{Lemma 17} of the source paper. The complex error term involving $\log \log OPT$ from the 2013 analysis disappears.
+	\item \textbf{Full Spectrum Parameters:} The 2015 paper notes they use the ``full spectrum'' of error parameters $\lambda_I$ in LM12, whereas the 2013 paper used only two types, contributing to the cleaner $O(1)$ error per iteration.
+\end{itemize}
+The final result: The total additive gap is $O(\log OPT)$ iterations $\times$ $O(1)$ error per iteration, yielding the tight $\mathbf{OPT_f + O(\log OPT)}$ bound.
+
+\subsection{Summarising Rothvoß \& Hoberg}
+
+The progression from Rothvoß (2013) to Hoberg \& Rothvoß (2015) exemplifies refinement in theoretical algorithm design. Both papers leverage the Gilmore-Gomory LP and the powerful Lovett-Meka discrepancy rounding algorithm. However, the 2013 paper required a complex, somewhat limited ``gluing'' mechanism to force the problem structure into shape for the rounding tool, resulting in an $O(\log OPT \cdot \log \log OPT)$ gap. The 2015 paper achieved the final $O(\log OPT)$ gap through a more fundamental insight: redefining the problem via a 2-stage packing (Items $\rightarrow$ Containers $\rightarrow$ Bins). This elegant structural change inherently created the ``smoothness'' needed for discrepancy rounding, leading to a cleaner algorithm, a simpler analysis, and a tighter, likely optimal, additive bound. Visualizing the contrast between ``gluing'' and ``2-stage packing'' will be key to understanding this significant theoretical advancement.
+
+\vspace{1em} % Adds a bit of vertical space
+\noindent % Prevents indentation
+Formally, the two breakthrough results are:
+
+\begin{theorem}[Rothvoß 2013]
+	\label{thm:rothvoss2013}
+	There exists a polynomial-time algorithm that, given a bin packing instance $I$, finds a packing using at most
+	$$OPT_f(I) + O(\log(OPT_f(I)) \cdot \log\log(OPT_f(I)))$$
+	bins, where $OPT_f(I)$ is the optimal value of the Gilmore-Gomory LP relaxation.
+\end{theorem}
+
+\begin{theorem}[Hoberg \& Rothvoß 2015]
+	\label{thm:hoberg-rothvoss2015}
+	There exists a polynomial-time algorithm that, given a bin packing instance $I$, finds a packing using at most
+	$$OPT_f(I) + O(\log(OPT_f(I)))$$
+	bins.
+\end{theorem}
+
+
+\section{Hybrid Genetic Grouping Algorithm}
+
+\subsection{Fundamental Axioms \& Assumptions}
+This derivation rests on three core hypotheses accepted as the foundation for the algorithm's design:
+
+\begin{enumerate}
+	\item \textbf{The Building Block Hypothesis (Holland):} A Genetic Algorithm optimizes by identifying, preserving, and recombining short, low-order, high-fitness partial solutions called "schemata" or "building blocks".
+	\item \textbf{The Grouping Structure Assumption:} In the Bin Packing Problem (BPP), the cost function depends solely on the composition of the groups (bins). Therefore, the only meaningful building block is a specific, well-filled group (bin), regardless of its position in the chromosome.
+	\item \textbf{The Dominance Conjecture:} A bin that is locally optimal (maximally filled) dominates other possible bins formed from the same items. We assume that constructing a global solution requires the accumulation of these "Dominant Bins".
+\end{enumerate}
+
+\subsection{Definitions}
+To formalize the proof, we define the following variables:
+
+\begin{itemize}
+	\item \textbf{$H$ (The Schema):} A \textit{Dominant Bin}. Defined as a specific subset of items that fills a bin capacity $C$ efficiently (representing a "group-schema of order one").
+	\item \textbf{$m(H, t)$:} The number of individuals in the population at generation $t$ containing bin $H$.
+	\item \textbf{$f(H)$:} The fitness contribution of bin $H$, defined by the algorithm's cost function as $(F_H / C)^k$ where $k=2$.
+	\item \textbf{$\bar{f}$:} The average fitness of the entire population.
+	\item \textbf{$P_{disruption}$:} The probability that the reproductive operators (Crossover/Mutation) destroy the composition of bin $H$ during transmission.
+\end{itemize}
+
+\subsection{The Derivation}
+
+\textbf{Theorem:} The HGGA satisfies the conditions required for the expected count of Dominant Bins, $E[m(H, t+1)]$, to grow exponentially over successive generations.
+
+\subsubsection{Step 1: Guaranteed Generation (The Existence Proof)}
+Standard GAs rely on random chance to generate good schemata. HGGA ensures $m(H, t) > 0$ through hybridization.
+\begin{itemize}
+	\item \textbf{Mechanism:} The algorithm applies a local optimization heuristic (inspired by the Dominance Criterion) that iteratively swaps items to maximize bin fill before evaluation.
+	\item \textbf{Implication:} The algorithm acts as a localized search engine that manufactures Dominant Bins ($H$), ensuring valid building blocks exist in the gene pool.
+\end{itemize}
+
+\subsubsection{Step 2: Selection Pressure (The Growth Proof)}
+We examine the Selection Ratio $\frac{f(H)}{\bar{f}}$.
+\begin{itemize}
+	\item \textbf{Mechanism:} The cost function raises the bin fill ratio to the power of $k=2$.
+	\item \textbf{Derivation:}
+	\[ \text{If } Fill_H \approx C \implies f(H) \approx 1.0 \]
+	\[ \text{If } Fill_{avg} \ll C \implies f(avg) \ll 1.0 \]
+	Consequently, the ratio $\frac{f(H)}{\bar{f}}$ is significantly greater than 1.
+	\item \textbf{Implication:} Individuals containing $H$ are selected as parents with high probability via Tournament Selection.
+\end{itemize}
+
+\subsubsection{Step 3: Zero-Disruption Transmission (The Survival Proof)}
+We examine the survival probability $(1 - P_{disruption})$.
+\begin{itemize}
+	\item \textbf{Mechanism:} The HGGA alters the encoding such that \textbf{One Gene = One Bin}. The Crossover operator (BPRX) transmits randomly selected genes (whole bins) from parent to child.
+	\item \textbf{Derivation:} Since $H$ is treated as an atomic unit, the crossover point cannot fall "inside" the bin definitions.
+	\[ P_{disruption}(H) \approx 0 \implies (1 - P_{disruption}) \approx 1 \]
+	\item \textbf{Implication:} Once selected, the building block $H$ is transmitted intact to the next generation.
+\end{itemize}
+
+\subsection{Conclusion for HGGA}
+Combining these steps into the Schema Theorem inequality:
+
+\[
+E[m(H, t+1)] \ge \underbrace{m(H, t)}{\substack{\text{Generated by} \\ \text{Step 1}}} \cdot \underbrace{\left[ \frac{f(H)}{\bar{f}} \right]}{\substack{\text{Step 2:} \\ \gg 1}} \cdot \underbrace{(1 - P_{disruption})}_{\substack{\text{Step 3:} \\ \approx 1}}
+\]
+
+Since the Growth Factor is strictly greater than 1 and the Disruption probability is negligible, the expected number of Dominant Bins grows geometrically. The population will progressively converge toward a state composed entirely of Dominant Bins—which constitutes the global optimum.
+
+\hfill \textbf{Q.E.D.}
+
+\section{The Martello-Toth Procedure (MTP)}
+
+	
+	\subsection{Problem Definition}
+	Given a set of $n$ items with integer sizes $I = \{s_1, s_2, \dots, s_n\}$ and a fixed bin capacity $C$, the objective is to partition $I$ into the minimum number of subsets (bins) $B_1, \dots, B_m$ such that the sum of sizes in each bin does not exceed $C$.
+	
+	We assume without loss of generality that items are sorted in non-increasing order of size:
+	\begin{equation}
+		s_1 \ge s_2 \ge \dots \ge s_n
+	\end{equation}
+	
+	\section{Mathematical Lower Bounds}
+	The efficiency of the MTP depends on the tightness of its lower bounds. A lower bound $L(I)$ allows the algorithm to prune branches of the search tree where the current partial solution plus the lower bound of the remaining items exceeds the best known solution.
+	
+	\subsection{The $L_1$ Bound (Volume Bound)}
+	The simplest lower bound is derived from the continuous relaxation of the problem (assuming items can be split like liquid).
+	\begin{equation}
+		L_1 = \left\lceil \frac{\sum_{i=1}^n s_i}{C} \right\rceil
+	\end{equation}
+	It is proven that the worst-case performance ratio of $L_1$ is $1/2$. While fast ($O(n)$), it is often loose for instances where items are large relative to $C$.
+	
+	\subsection{The $L_2$ Bound (Martello-Toth Bound)}
+	The core mathematical contribution of the MTP is the $L_2$ bound, which improves upon $L_1$ by analyzing "wasted" space that is mathematically unavoidable.
+	
+	\subsubsection{Definitions}
+	For any integer parameter $K$ such that $0 \le K \le C/2$, we classify the items into three sets:
+	\begin{align*}
+		N_1(K) &= \{ i \in I : s_i > C - K \} & \text{(Large items)} \\
+		N_2(K) &= \{ i \in I : C - K \ge s_i > C/2 \} & \text{(Medium items)} \\
+		N_3(K) &= \{ i \in I : C/2 \ge s_i \ge K \} & \text{(Small items)}
+	\end{align*}
+	
+	\subsubsection{The $L(K)$ Function}
+	Based on these sets, we define a function $L(K)$:
+	\begin{equation}
+		L(K) = |N_1| + |N_2| + \max\left(0, \left\lceil \frac{\sum_{i \in N_3} s_i - R_{N_2}}{C} \right\rceil \right)
+	\end{equation}
+	where $R_{N_2}$ is the total residual capacity left in the bins containing items from $N_2$:
+	\[
+	R_{N_2} = |N_2|C - \sum_{i \in N_2} s_i
+	\]
+	
+	\begin{theorem}[Correctness of $L(K)$]
+		For any $K \in [0, C/2]$, $L(K)$ is a valid lower bound on the optimal number of bins $m$.
+	\end{theorem}
+	
+	\begin{proof}
+		Consider the packing requirements of the sets $N_1$, $N_2$, and $N_3$:
+		\begin{enumerate}
+			\item \textbf{Separation of Large Items:} Every item in $N_1$ has size $s_i > C-K$. Every item in $N_2$ has size $s_i > C/2$. Since $K \le C/2$, all items in $N_1 \cup N_2$ have size strictly greater than $C/2$. Therefore, no two items from $N_1 \cup N_2$ can fit into the same bin. This implies that at least $|N_1| + |N_2|$ bins are required just to hold these items.
+			
+			\item \textbf{Incompatibility of $N_1$ and $N_3$:} An item from $N_3$ has size $s_i \ge K$. An item from $N_1$ has size $s_j > C-K$. The sum $s_i + s_j > C$. Thus, no item from $N_3$ can be placed in a bin containing an item from $N_1$.
+			
+			\item \textbf{Filling the Gaps:} The items in $N_3$ must be packed either into the remaining space of bins containing $N_2$ items, or into completely new bins.
+			The total available space in the bins utilized by $N_2$ items is exactly $R_{N_2} = |N_2|C - \sum_{i \in N_2} s_i$.
+			
+			\item \textbf{Calculation:} The total size of items in $N_3$ is $\sum_{i \in N_3} s_i$. The portion of this total size that \textit{cannot} fit into the $N_2$ bins is:
+			\[
+			\text{Excess} = \max\left(0, \sum_{i \in N_3} s_i - R_{N_2}\right)
+			\]
+			This excess volume must go into new bins. The minimum number of additional bins required for this excess is $\lceil \text{Excess} / C \rceil$.
+			
+			\item \textbf{Conclusion:} The total bins required is the sum of bins for $N_1 \cup N_2$ plus the additional bins for the overflow of $N_3$.
+			\[
+			m \ge (|N_1| + |N_2|) + \left\lceil \frac{\max(0, \sum_{N_3} s_i - R_{N_2})}{C} \right\rceil
+			\]
+		\end{enumerate}
+		This concludes the proof.
+	\end{proof}
+	
+	\subsubsection{The Optimized $L_2$ Bound}
+	The bound $L_2$ is defined as the maximum value of $L(K)$ over all feasible $K$:
+	\begin{equation}
+		L_2 = \max_{0 \le K \le C/2} L(K)
+	\end{equation}
+	To compute this efficiently, it is sufficient to check $K$ only for distinct values of $s_i \le C/2$. If items are sorted, this can be computed in $O(n)$ time.
+	
+	\subsection{Reduction Procedures}
+	Before and during the branching process, MTP applies reduction procedures to fix bins permanently, reducing the problem size. This relies on the concept of \textbf{Dominance}.
+	
+	\begin{definition}[Feasible Set Dominance]
+		A feasible set $F_1$ dominates a feasible set $F_2$ if the optimal solution obtained by setting a bin $B = F_1$ is not worse than the optimal solution obtained by setting $B = F_2$.
+	\end{definition}
+	
+	\subsection{Dominance Criterion}
+	A sufficient condition for dominance is:
+	If $F_1$ and $F_2$ are distinct feasible sets, and there exists a partition $P = \{P_1, \dots, P_\ell\}$ of $F_2$ and a subset $\{i_1, \dots, i_\ell\} \subseteq F_1$ such that:
+	\begin{equation}
+		s_{i_h} \ge \sum_{k \in P_h} s_k \quad \text{for } h=1, \dots, \ell
+	\end{equation}
+	then $F_1$ dominates $F_2$.
+	
+	\subsection{Reduction Algorithm}
+	The MTP reduction algorithm (Procedure REDUCTION) iteratively looks for dominating sets to fix into bins.
+
+
+\begin{enumerate}
+	\item \textbf{Initialization:} Initialize fixed bins count $j \leftarrow 0$. Define $I$ as the set of unpacked items.
+	\item \textbf{Loop Start:} Begin repetition until the condition in step 5 is met.
+	\item \textbf{Selection:} Let $i$ be the largest remaining item in $I$.
+	\item \textbf{Find Optimal Set $F$:}
+	\begin{itemize}
+		\item Find the feasible set $F \subseteq I$ containing $i$ that packs the bin most effectively (dominates other sets containing $i$).
+		\item \textbf{Check 1 (Single Item):} If $i$ cannot fit with any other item, set $F=\{i\}$.
+		\item \textbf{Check 2 (Pairs):} If $i$ fits with $i'$ and $\{i, i'\}$ fills the bin optimally (e.g., $s_i + s_{i'} = C$), set $F=\{i, i'\}$.
+	\end{itemize}
+	\item \textbf{Bin Fixation:} If the set $F$ is not empty:
+	\begin{itemize}
+		\item Increment bin count $j \leftarrow j + 1$.
+		\item Fix Bin $B_j := F$.
+		\item Remove items in $F$ from $I$.
+	\end{itemize}
+	\item \textbf{Loop End:} Repeat from step 2 until no further reductions are possible in $I$.
+\end{enumerate}
+
+	This procedure essentially greedily matches items if they form a "perfect" or "dominant" bin, reducing the complexity for the subsequent Branch-and-Bound phase.
+	
+	\subsection{The Exact Branch-and-Bound Algorithm}
+	The complete Martello-Toth Procedure combines the bounds and reductions into a Depth-First Search (DFS).
+	
+	\subsection{Algorithm Steps}
+	\begin{enumerate}
+		\item \textbf{Initialization:}
+		\begin{itemize}
+			\item Sort items $s_1 \ge s_2 \dots \ge s_n$.
+			\item Calculate global lower bound $LB = L_2$.
+			\item Calculate heuristic upper bound $UB$ (using First-Fit Decreasing or Best-Fit Decreasing).
+			\item If $LB == UB$, the heuristic solution is optimal. STOP.
+		\end{itemize}
+		
+		\item \textbf{Reduction:}
+		\begin{itemize}
+			\item Apply Procedure REDUCTION to fix easy bins. Update problem size and $LB$.
+		\end{itemize}
+		
+		\item \textbf{Branching (Backtracking):}
+		\begin{itemize}
+			\item MTP builds a solution bin by bin.
+			\item For the current bin, it attempts to place the largest available item.
+			\item It then recursively attempts to fill the remaining capacity of the current bin with the next largest fitting items.
+			\item Once a bin is closed, it moves to the next bin.
+		\end{itemize}
+		
+		\item \textbf{Pruning (The Critical Step):}
+		At any node in the search tree:
+		\begin{itemize}
+			\item Let $m_{current}$ be the number of bins already fixed/filled.
+			\item Let $I_{rem}$ be the set of remaining unpacked items.
+			\item Calculate the lower bound for the remainder: $L_2(I_{rem})$.
+			\item \textbf{Condition:} If $m_{current} + L_2(I_{rem}) \ge UB$, then this branch cannot lead to a better solution than what we already found. \textbf{PRUNE (Backtrack)}.
+		\end{itemize}
+		
+		\item \textbf{Updating Best Solution:}
+		If a valid packing is found with $z$ bins and $z < UB$:
+		\begin{itemize}
+			\item Update $UB = z$.
+			\item If $UB == LB$, STOP (Optimal found).
+		\end{itemize}
+	\end{enumerate}
+	
+	\subsection{Complexity and Optimality}
+	The MTP is an exact algorithm. While the worst-case time complexity is exponential (due to the NP-hardness of BPP), the effective use of the $L_2$ bound allows it to solve many instances efficiently. The $L_2$ bound has an asymptotic worst-case performance ratio of $2/3$, meaning it is tighter than simple volume bounds.
+	
+
+\section{Comparative Discussion}
+
+The table below summarizes several standard algorithm families for one-dimensional \textsc{Bin Packing}. We expand on the meaning of their approximation guarantees, additive gaps, and running times.
+
+\begin{table}[htbp]
+	\centering
+	\caption{Comparison of Bin Packing Algorithms}
+	\label{tab:comparison}
+	\begin{tabular}{lccc}
+		\toprule
+		Algorithm & Approx. Guarantee & Additive Gap & Runtime \\
+		\midrule
+		FF / BF & Constant & $O(\mathrm{OPT})$ & $O(n \log n)$ \\
+		FFD / BFD & $\frac{11}{9} + \frac{6}{9}$ & $+1$ & $O(n \log n)$ \\
+		Harmonic-$K$ & $\approx 1.691$ & $O(\mathrm{OPT})$ & Fast \\
+		APTAS & $(1+\varepsilon)$ & $O(1)$ & $n^{\,O(1/\varepsilon)}$ \\
+		AFPTAS & $(1+\varepsilon)$ & $O(1)$ & Poly$(n, 1/\varepsilon)$ \\
+		LP-based (Hoberg--Rothvo{\ss}) & $1+\varepsilon$ & $O(\log \mathrm{OPT})$ & Slow \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\subsection{Discussion of Algorithm Families}
+
+\paragraph{FF / BF (First Fit / Best Fit).}
+These simple greedy heuristics run in $O(n\log n)$ time and achieve constant-factor approximation guarantees. Their asymptotic ratio approaches $1.7$, and the additive gap can be as large as $O(\mathrm{OPT})$ on adversarial inputs. Despite weaker bounds, they are extremely fast and broadly used in practice.\cite{johnson1974}
+
+\paragraph{FFD / BFD (First Fit Decreasing / Best Fit Decreasing).}
+Sorting items in nonincreasing order greatly improves performance. The classical bound for FFD is
+\[
+\mathrm{FFD}(I) \le \frac{11}{9}\,\mathrm{OPT}(I) + \frac{6}{9},
+\]
+yielding an asymptotic ratio of $11/9$ and an additive error bounded by a universal constant. These algorithms maintain $O(n\log n)$ runtime and serve as strong practical baselines.\cite{Dosa2007}
+
+\paragraph{Harmonic-$K$.}
+Harmonic algorithms partition item sizes into classes and pack each class separately. The limiting asymptotic ratio of the classical harmonic family is $T_{\infty} \approx 1.691$. Larger $K$ improves the guarantee but increases running time. These algorithms perform well on structured or heavy-tailed input distributions.\cite{LeeLee1985}
+
+\paragraph{APTAS (Asymptotic PTAS).}
+The scheme of Fernández de la Vega and Lueker produces, for any $\varepsilon>0$, a packing with ratio $(1+\varepsilon)$ and additive error $O(1)$. The runtime typically has the form $n^{O(1/\varepsilon)}$, which becomes large for very small $\varepsilon$, limiting practical use.\cite{vega1981}
+
+\paragraph{AFPTAS (Asymptotic Fully PTAS).}
+AFPTAS methods refine the APTAS by ensuring runtime polynomial in both $n$ and $1/\varepsilon$. These approaches employ grouping, rounding, and configuration-LP machinery. They remove the exponential dependence on $1/\varepsilon$, substantially increasing practical relevance.\cite{JansenKraft2013}
+
+\paragraph{LP-based Approaches (Hoberg--Rothvo{\ss}).}
+Advanced LP-based methods leveraging discrepancy theory guarantee packings within $\mathrm{OPT} + O(\log\mathrm{OPT})$ bins, giving near-optimal additive performance. These techniques are extremely powerful but require solving large linear programs and are slower than combinatorial heuristics.\cite{HobergRothvoss2017}
+
+\newpage
+
+\newtheorem{assumption}{Assumption}
+
+% Title Information
+\section{The One-Cut Linear Programming Approach for the Cutting Stock Problem}
+	
+	
+	
+	\subsection{Problem Definition}
+
+	The classical Gilmore-Gomory approach to the One-Dimensional Cutting Stock Problem relies on column generation to handle an exponential number of cutting patterns. Dyckhoff (1981) proposed an alternative formulation, "Model II", based on a recursive "One-Cut" principle. This document details the mathematical formulation of Model II, which uses a polynomial number of variables and constraints for many practical instances, allowing it to be solved using standard Linear Programming software without column generation. 
+	\\
+	
+	\textbf{Relationship to the 1D Bin Packing Problem (1DBPP).}  
+	The 1DBPP is closely related to the 1DCSP: both problems involve packing 
+	items of given lengths into containers of fixed capacity, and both seek to 
+	minimize the number of containers (bins or stock lengths) used. In fact, 
+	the 1DBPP can be viewed as a special case of the 1DCSP in which each pattern 
+	contains \emph{at most one} copy of each item size, whereas the cutting-stock 
+	formulation allows multiple copies of the same item type per pattern. 
+	Therefore, the modelling ideas behind Model~II recursive subdivision, 
+	capacity-based decomposition, and pattern generation through ``one cut at a 
+	time'' extend naturally to Bin Packing as well.  
+	This connection is why techniques developed for the cutting-stock literature, 
+	including Gilmore--Gomory and Dyckhoff's Model~II, often carry over directly 
+	to efficient formulations or relaxations of the 1DBPP.
+
+	
+	We consider the \textbf{Standard Problem} of one-dimensional cutting stock optimization. 
+	Given:
+	\begin{itemize}
+		\item A set of standard stock lengths $S = \{s_1, \dots, s_K\}$.
+		\item A set of required order lengths (demand) $D = \{d_1, \dots, d_I\}$.
+		\item Demand requirements $N_l$ for each order length $l \in D$.
+		\item Costs $c_l$ associated with consuming a standard length $l \in S$.
+	\end{itemize}
+	The objective is to satisfy all demands $N_l$ while minimizing the total cost of stock used.
+	
+	\subsection{The One-Cut Concept}
+	Unlike the classical approach (Model I), which defines a variable for every possible complex cutting pattern (e.g., "one bin contains 2 items of size A and 3 of size B"), Model II is based on a recursive cutting process.
+	
+	\begin{assumption}[The One-Cut Principle]
+		The cutting process is modeled as an unlimited sequence of cutting operations. In each operation, a piece of length $k$ is divided into exactly two new pieces:
+		\begin{enumerate}
+			\item A section of an order length $l \in D$ (where $l < k$).
+			\item A residual section of length $k - l$.
+		\end{enumerate}
+	\end{assumption}
+	This simple structure $[k; l]$ allows complex patterns to be built successively. For example, cutting a length of 9 into $\{4, 2, 2, 1\}$ is modeled as:
+	\[ [9; 4] \to \text{Residue } 5 \to [5; 2] \to \text{Residue } 3 \to [3; 2] \to \text{Residue } 1 \]
+	
+	\subsection{Mathematical Formulation (Model II)}
+	
+	\subsection{Sets and Parameters}
+	Let $R$ be the set of all relevant residual lengths (lengths that can be produced by cutting order lengths from stock lengths).
+	The model considers all lengths in the set $L = S \cup D \cup R$.
+	
+	\subsection{Decision Variables}
+	The fundamental decision variables represent the number of times a specific "one-cut" is performed:
+	\begin{equation}
+		y_{k,l} \ge 0 \quad \text{for } k \in S \cup R, \ l \in D, \ l < k
+	\end{equation}
+	$y_{k,l}$ represents the number of pieces of length $k$ that are cut to produce one item of order length $l$ and a remainder of $k-l$.
+	
+	\subsection{Constraints}
+	The model relies on \textbf{flow conservation (balance) constraints} for every length $l$ that is not a standard stock length (i.e., for all $l \in (D \cup R) \setminus S$).
+	
+	The logic is: \textit{Total Input of length $l$ $\ge$ Total Output of length $l$}.
+	
+	\begin{equation}
+		\underbrace{\sum_{k \in A_l} y_{k,l}}_{\text{Production from larger cuts}} + \underbrace{\sum_{k \in B_l} y_{k+l, k}}_{\text{Production as residue}} \ge \underbrace{\sum_{k \in C_l} y_{l,k}}_{\text{Consumption for smaller cuts}} + \underbrace{N_l}_{\text{Final Demand}}
+	\end{equation}
+	
+	Where the sets are defined as:
+	\begin{itemize}
+		\item $A_l = \{k \in S \cup R \mid k > l\}$: Lengths $k$ that can be cut to produce $l$ as the primary order piece.
+		\item $B_l = \{k \in D \mid k+l \in S \cup R\}$: Lengths $k+l$ that, when cut into order size $k$, leave $l$ as the residue.
+		\item $C_l = \{k \in D \mid k < l\}$: Order lengths $k$ that can be cut \textit{from} length $l$.
+	\end{itemize}
+	
+	\subsection{Objective Function}
+	The objective is to minimize the net cost of standard lengths consumed.
+	\begin{equation}
+		\text{Minimize } Z = \sum_{l \in S} c_l \left( \sum_{k \in C_l} y_{l,k} - \sum_{k \in B_l} y_{k+l, k} \right)
+	\end{equation}
+	This calculates the net consumption of standard length $l$ as: (Total pieces of $l$ cut) minus (Total pieces of $l$ produced as residue from larger stock).
+	
+	\subsection{Comparison with Classical Model (Model I)}
+	
+	\begin{table}[h]
+		\centering
+		\begin{tabular}{|l|l|l|}
+			\hline
+			\textbf{Feature} & \textbf{Model I (Gilmore-Gomory)} & \textbf{Model II (Dyckhoff)} \\ \hline
+			\textbf{Variables} & Cutting Patterns (Exponential) & One-Cuts (Polynomial) \\ \hline
+			\textbf{Constraints} & $|D|$ (Number of order lengths) & $|D| + |R|$ (Orders + Residues) \\ \hline
+			\textbf{Solution Method} & Column Generation & Standard Simplex \\ \hline
+			\textbf{Structure} & Static Patterns & Dynamic Flow \\ \hline
+		\end{tabular}
+		\caption{Comparison of Approaches}
+	\end{table}
+	
+	\subsection{Model Size Analysis}
+	Model II generally has more constraints than Model I but drastically fewer variables.
+	\begin{itemize}
+		\item \textbf{Model I:} Constraints $\approx I$. Variables $\approx$ Millions.
+		\item \textbf{Model II:} Constraints $\approx S_{max}$ (max standard length). Variables $\approx I \cdot (K + S_{max})$.
+	\end{itemize}
+	For problems with many stock lengths or a high ratio of demand sizes to stock size ($|D|/S_{max} \approx 1$), Model II can be significantly more efficient and easier to implement.
+	
+	\subsection{Conclusion}
+	Dyckhoff's Model II offers a distinct advantage for cutting stock problems where the variety of stock lengths is high or where "trim loss" has value (reusable residue). By treating the cutting process as a flow of materials through "one-cut" transformations, it avoids the complexity of generating all combinatorial patterns, providing an exact solution using standard LP solvers.
+
+\section{Limitations and Future Scope}
+
+The current study, while comprehensive within the domain of the One-Dimensional Bin Packing Problem (1DBPP), is subject to specific constraints. We identify the following limitations and propose corresponding avenues for future research.
+
+\begin{enumerate}
+    \item \textbf{Dimensionality Constraints}
+    \begin{itemize}
+        \item \textbf{Limitation:} This project is strictly bound to the One-Dimensional Bin Packing Problem (1DBPP). While this models simpler resource allocation (e.g., time scheduling or single-resource memory), it fails to capture the geometric complexities of physical logistics.
+        \item \textbf{Future Scope:} Extending the comparative analysis to 2D or 3D Bin Packing (e.g., packing pallets or shipping containers), where constraints like rotation, item shape, and structural stability become critical factors.
+    \end{itemize}
+
+    \item \textbf{Static Nature of Data (No Departures)}
+    \begin{itemize}
+        \item \textbf{Limitation:} The study assumes a ``static'' or ``insert-only'' environment where items arrive and stay forever. It does not account for Dynamic Bin Packing, where items also depart (e.g., tasks finishing in a cloud server), leading to fragmentation over time.
+        \item \textbf{Future Scope:} Analyzing Fully Dynamic Bin Packing, incorporating item departures and measuring ``migration cost''—the cost of moving items between bins to defragment the space.
+    \end{itemize}
+
+    \item \textbf{Homogeneity of Bins}
+    \begin{itemize}
+        \item \textbf{Limitation:} The current scope assumes all bins are identical with a fixed capacity. Many real-world scenarios (e.g., heterogeneous server clusters or mixed fleets of delivery trucks) involve Variable Sized Bin Packing (VSBPP).
+        \item \textbf{Future Scope:} Investigating heuristics for Heterogeneous Bin Packing, where the algorithm must choose between different bin sizes to minimize total cost rather than just bin count.
+    \end{itemize}
+
+    \item \textbf{Practicality of Asymptotic Schemes}
+    \begin{itemize}
+        \item \textbf{Limitation:} While the project analyzes APTAS and Karmarkar-Karp theoretically, their practical utility is limited by high time complexity on small-to-medium datasets. As noted in the proposal, the complexity of APTAS ($n^{O(1/\epsilon)}$) is often prohibitive for practical use, and Karmarkar-Karp relies on heavy machinery (Ellipsoid method) that is computationally expensive for $N < 1000$.
+        \item \textbf{Future Scope:} Exploring AFPTAS (Asymptotic Fully Polynomial Time Approximation Schemes) or hybrid metaheuristics that combine the theoretical guarantees of LP-based methods with the speed of local search (like Tabu Search) to bridge the gap between theory and real-time application.
+    \end{itemize}
+
+    \item \textbf{Adversarial vs. Stochastic Inputs}
+    \begin{itemize}
+        \item \textbf{Limitation:} The experimental evaluation focuses on standard benchmarks (Falkenauer, Scholl). While effective for comparison, these may not reflect adversarial worst-case inputs that specifically break greedy heuristics (as proven in the theoretical bounds of First-Fit) or highly specific real-world distributions (e.g., heavy-tailed internet traffic).
+        \item \textbf{Future Scope:} Conducting a Robustness Analysis using procedurally generated adversarial datasets designed to trigger the worst-case performance ratios ($1.7$ for FF) to empirically validate the lower bounds derived in the theoretical section.
+    \end{itemize}
+
+    \item \textbf{Single-Objective Optimization}
+    \begin{itemize}
+        \item \textbf{Limitation:} The project optimizes solely for the number of bins. It does not consider secondary objectives like load balancing (spreading items evenly) or energy efficiency (minimizing active bins for power saving), which are often trade-offs in real-world engineering.
+        \item \textbf{Future Scope:} Multi-objective optimization analysis, comparing how algorithms like Best-Fit (which packs tightly) vs. Worst-Fit (which load balances) perform when both space efficiency and resource distribution are prioritized.
+    \end{itemize}
+\end{enumerate}
+
+\section{Bonus Disclosure}
+
+This section serves as an explicit disclosure to the evaluator, indicating specific report components that we are choosing to submit for \textbf{Bonus Credit} consideration. The following table identifies these components and their locations within the report.
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|l|p{7cm}|c|}
+		\hline
+		\textbf{Component Type} & \textbf{Component Description} & \textbf{Location in Report} \\
+		\hline
+		1 & The Karmarkar Karp Algorithm & Section 8 \\
+		\hline
+		2 & Hoberg and Rothvoß & Section 9 \\
+		\hline
+		3 & The Martello-Toth Procedure & Section 12 \\
+		\hline
+		4 & Manim Animations & Youtube Links Below \\
+		\hline
+		5 & Live Heuristic Animations Visualiser & Link Below \\
+		\hline
+	\end{tabular}
+	\label{tab:bonus_disclosure}
+\end{table}
+
+\vspace{0.5em}
+\noindent \textbf{Video References:} \\ 
+1. \url{https://www.youtube.com/watch?v=xNtxqb9TEok} \\
+2. \url{https://www.youtube.com/watch?v=pc60EVLT4j0} \\
+3. \url{https://www.youtube.com/watch?v=BHxoNvHYT70} \\
+4. \url{https://www.youtube.com/watch?v=mZl0LN9C3R4} \\ \\
+\textbf{Live Heuristic Simulator:} \\
+\url{https://binpacking-1d-visualiser.streamlit.app/}
+
+
+\newpage
+
+\begin{thebibliography}{99}
+	
+	
+	\bibitem{karp1972} R.~M. Karp, `Reducibility among combinatorial problems,'' in \textit{Complexity of Computer Computations}, R.~E. Miller and J.~W. Thatcher (eds.), Plenum Press, New York, 1972, pp.~85--103. 
+	
+	\bibitem{karmarkarkarp} N.~Karmarkar and R.~M. Karp, `The differencing method of set partitioning,'' 
+	\textit{Computer Science Division}, Univ. of California, Berkeley, Tech. Rep. UCB/CSD 82-113, 1982.
+	
+	\bibitem{gareyjohnson1979}
+	M.~R. Garey and D.~S. Johnson,
+	\textit{Computers and Intractability: A Guide to the Theory of NP-Completeness},
+	Freeman, 1979.
+	
+	\bibitem{johnson1974}
+	D.~S. Johnson, A.~Demers, J.~D. Ullman, M.~R. Garey, and R.~L. Graham,
+	``Worst-case performance bounds for simple one-dimensional packing algorithms,''
+	\textit{SIAM Journal on Computing}, 3(4), 1974.
+	
+	\bibitem{coffman1983}
+	E.~G. Coffman, Jr., M.~R. Garey, and D.~S. Johnson,
+	``Approximation algorithms for bin-packing: a survey,''
+	in \textit{Approximation Algorithms for NP-hard Problems},
+	PWS, 1997.
+	
+	\bibitem{vega1981}
+	W.~Fernández de la Vega and G.~Lueker,
+	``Bin packing can be solved within $1+\varepsilon$ in linear time,''
+	\textit{Combinatorica}, 1(4):349--355, 1981.
+	
+	\bibitem{lee1985harmonic}
+	C.~C. Lee and D.~T. Lee,
+	``A simple on-line bin-packing algorithm,''
+	\textit{Journal of the ACM}, 32(3), 1985.
+	
+	\bibitem{jansen2013}
+	K.~Jansen and K.~Klein,
+	``A robust AFPTAS for online bin packing with cardinality constraints,''
+	\textit{SIAM Journal on Computing}, 43(4), 2013.
+	
+	\bibitem{hoberg2017}
+	R.~Hoberg and T.~Rothvoß,
+	``A nearly linear-time algorithm for bin packing with $O(\log OPT)$ bins,''
+	\textit{FOCS}, 2017.
+	
+	\bibitem{Dosa2007}
+	G. D\'osa.
+	\newblock The Tight Bound of First Fit Decreasing Bin-Packing Algorithm Is 11/9.
+	\newblock \emph{Algorithmica}, 42:267--284, 2007.
+	
+	\bibitem{LeeLee1985}
+	C.~C. Lee and D.~T. Lee.
+	\newblock A simple on-line bin-packing algorithm.
+	\newblock \emph{Journal of the ACM}, 32(3):562--572, 1985.
+	
+	\bibitem{JansenKraft2013}
+	K. Jansen and D. Kraft.
+	\newblock A faster FPTAS for bin packing with cardinality constraints.
+	\newblock \emph{Theoretical Computer Science}, 505:17--25, 2013.
+	
+	\bibitem{HobergRothvoss2017}
+	R. Hoberg and T. Rothvo{\ss}.
+	\newblock A logarithmic additive integrality gap for bin packing.
+	\newblock In \emph{Proceedings of the 28th ACM-SIAM SODA}, 2017.
+	
+	
+	\bibitem{unibristol}
+	Raphael Clifford, Benjamin Sach, University of Bristol,
+	Lecture Slides - Advanced Algorithms Part 4,''
+	
+\end{thebibliography}
+
+\end{document}
+

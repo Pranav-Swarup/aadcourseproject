@@ -61,18 +61,18 @@ class HarmonicKScene(Scene):
         self.play(Create(zones), run_time=1.5)
         self.wait(0.5)
 
-    # Create a row of item numbers above the bins and to the right of the table
-    top_number_labels = [Text(str(s), font_size=20, color=WHITE) for s in ITEMS_TO_ANIMATE]
-    numbers_row = VGroup(*top_number_labels)
-    numbers_row.arrange(RIGHT, buff=0.35)
-    # Place the row to the right of the rules table
-    numbers_row.next_to(rules_table, RIGHT, buff=0.6)
-    # Lift the row so it sits above the top of the zones
-    row_x = numbers_row.get_center()[0]
-    row_y = zones.get_top()[1] + 0.8
-    numbers_row.move_to([row_x, row_y, 0])
-    self.play(Write(numbers_row), run_time=1.0)
-    self.wait(0.3)
+        # Create a row of item numbers above the bins and to the right of the table
+        top_number_labels = [Text(str(s), font_size=20, color=WHITE) for s in ITEMS_TO_ANIMATE]
+        numbers_row = VGroup(*top_number_labels)
+        numbers_row.arrange(RIGHT, buff=0.35)
+        # Place the row to the right of the rules table
+        numbers_row.next_to(rules_table, RIGHT, buff=0.6)
+        # Lift the row so it sits above the top of the zones
+        row_x = numbers_row.get_center()[0]
+        row_y = zones.get_top()[1] + 0.8
+        numbers_row.move_to([row_x, row_y, 0])
+        self.play(Write(numbers_row), run_time=1.0)
+        self.wait(0.3)
         
         # Initialize bin groups: each group has a list of bins
         # Each bin is a dict with:
@@ -348,4 +348,3 @@ class HarmonicKScene(Scene):
             zone_centers.append(np.array([zone_x, zone_y, 0]))
         
         return zones, zone_centers
-
