@@ -1,0 +1,186 @@
+\documentclass[11pt, a4paper]{article}
+
+% Packages for formatting and mathematics
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+% Geometry settings
+\geometry{left=25mm, right=25mm, top=25mm, bottom=25mm}
+
+% Theorem environments
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{definition}{Definition}
+\newtheorem{corollary}{Corollary}
+
+% Title Information
+\title{\textbf{The Martello-Toth Procedure (MTP) for the One-Dimensional Bin Packing Problem}}
+\author{A Detailed Algorithmic Analysis}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+The One-Dimensional Bin Packing Problem (1DBPP) is an NP-hard combinatorial optimization problem. While heuristic approaches provide approximate solutions, exact algorithms are required to determine the minimal number of bins $m$. This document details the Martello-Toth Procedure (MTP), an exact Branch-and-Bound algorithm. We rigorously define the bounding procedures ($L_1$ and $L_2$), the dominance criteria used for problem reduction, and provide the mathematical proof of correctness for the $L_2$ bound, which serves as the primary pruning mechanism for the search tree.
+\end{abstract}
+
+\section{Problem Definition}
+Given a set of $n$ items with integer sizes $I = \{s_1, s_2, \dots, s_n\}$ and a fixed bin capacity $C$, the objective is to partition $I$ into the minimum number of subsets (bins) $B_1, \dots, B_m$ such that the sum of sizes in each bin does not exceed $C$.
+
+We assume without loss of generality that items are sorted in non-increasing order of size:
+\begin{equation}
+s_1 \ge s_2 \ge \dots \ge s_n
+\end{equation}
+
+\section{Mathematical Lower Bounds}
+The efficiency of the MTP depends on the tightness of its lower bounds. A lower bound $L(I)$ allows the algorithm to prune branches of the search tree where the current partial solution plus the lower bound of the remaining items exceeds the best known solution.
+
+\subsection{The $L_1$ Bound (Volume Bound)}
+The simplest lower bound is derived from the continuous relaxation of the problem (assuming items can be split like liquid).
+\begin{equation}
+L_1 = \left\lceil \frac{\sum_{i=1}^n s_i}{C} \right\rceil
+\end{equation}
+It is proven that the worst-case performance ratio of $L_1$ is $1/2$. While fast ($O(n)$), it is often loose for instances where items are large relative to $C$.
+
+\subsection{The $L_2$ Bound (Martello-Toth Bound)}
+The core mathematical contribution of the MTP is the $L_2$ bound, which improves upon $L_1$ by analyzing "wasted" space that is mathematically unavoidable.
+
+\subsubsection{Definitions}
+For any integer parameter $K$ such that $0 \le K \le C/2$, we classify the items into three sets:
+\begin{align*}
+N_1(K) &= \{ i \in I : s_i > C - K \} & \text{(Large items)} \\
+N_2(K) &= \{ i \in I : C - K \ge s_i > C/2 \} & \text{(Medium items)} \\
+N_3(K) &= \{ i \in I : C/2 \ge s_i \ge K \} & \text{(Small items)}
+\end{align*}
+
+\subsubsection{The $L(K)$ Function}
+Based on these sets, we define a function $L(K)$:
+\begin{equation}
+L(K) = |N_1| + |N_2| + \max\left(0, \left\lceil \frac{\sum_{i \in N_3} s_i - R_{N_2}}{C} \right\rceil \right)
+\end{equation}
+where $R_{N_2}$ is the total residual capacity left in the bins containing items from $N_2$:
+\[
+R_{N_2} = |N_2|C - \sum_{i \in N_2} s_i
+\]
+
+\begin{theorem}[Correctness of $L(K)$]
+For any $K \in [0, C/2]$, $L(K)$ is a valid lower bound on the optimal number of bins $m$.
+\end{theorem}
+
+\begin{proof}
+Consider the packing requirements of the sets $N_1$, $N_2$, and $N_3$:
+\begin{enumerate}
+    \item \textbf{Separation of Large Items:} Every item in $N_1$ has size $s_i > C-K$. Every item in $N_2$ has size $s_i > C/2$. Since $K \le C/2$, all items in $N_1 \cup N_2$ have size strictly greater than $C/2$. Therefore, no two items from $N_1 \cup N_2$ can fit into the same bin. This implies that at least $|N_1| + |N_2|$ bins are required just to hold these items.
+    
+    \item \textbf{Incompatibility of $N_1$ and $N_3$:} An item from $N_3$ has size $s_i \ge K$. An item from $N_1$ has size $s_j > C-K$. The sum $s_i + s_j > C$. Thus, no item from $N_3$ can be placed in a bin containing an item from $N_1$.
+    
+    \item \textbf{Filling the Gaps:} The items in $N_3$ must be packed either into the remaining space of bins containing $N_2$ items, or into completely new bins.
+    The total available space in the bins utilized by $N_2$ items is exactly $R_{N_2} = |N_2|C - \sum_{i \in N_2} s_i$.
+    
+    \item \textbf{Calculation:} The total size of items in $N_3$ is $\sum_{i \in N_3} s_i$. The portion of this total size that \textit{cannot} fit into the $N_2$ bins is:
+    \[
+    \text{Excess} = \max\left(0, \sum_{i \in N_3} s_i - R_{N_2}\right)
+    \]
+    This excess volume must go into new bins. The minimum number of additional bins required for this excess is $\lceil \text{Excess} / C \rceil$.
+    
+    \item \textbf{Conclusion:} The total bins required is the sum of bins for $N_1 \cup N_2$ plus the additional bins for the overflow of $N_3$.
+    \[
+    m \ge (|N_1| + |N_2|) + \left\lceil \frac{\max(0, \sum_{N_3} s_i - R_{N_2})}{C} \right\rceil
+    \]
+\end{enumerate}
+This concludes the proof.
+\end{proof}
+
+\subsubsection{The Optimized $L_2$ Bound}
+The bound $L_2$ is defined as the maximum value of $L(K)$ over all feasible $K$:
+\begin{equation}
+L_2 = \max_{0 \le K \le C/2} L(K)
+\end{equation}
+To compute this efficiently, it is sufficient to check $K$ only for distinct values of $s_i \le C/2$. If items are sorted, this can be computed in $O(n)$ time.
+
+\section{Reduction Procedures}
+Before and during the branching process, MTP applies reduction procedures to fix bins permanently, reducing the problem size. This relies on the concept of \textbf{Dominance}.
+
+\begin{definition}[Feasible Set Dominance]
+A feasible set $F_1$ dominates a feasible set $F_2$ if the optimal solution obtained by setting a bin $B = F_1$ is not worse than the optimal solution obtained by setting $B = F_2$.
+\end{definition}
+
+\subsection{Dominance Criterion}
+A sufficient condition for dominance is:
+If $F_1$ and $F_2$ are distinct feasible sets, and there exists a partition $P = \{P_1, \dots, P_\ell\}$ of $F_2$ and a subset $\{i_1, \dots, i_\ell\} \subseteq F_1$ such that:
+\begin{equation}
+s_{i_h} \ge \sum_{k \in P_h} s_k \quad \text{for } h=1, \dots, \ell
+\end{equation}
+then $F_1$ dominates $F_2$.
+
+\subsection{Reduction Algorithm}
+The MTP reduction algorithm (Procedure REDUCTION) iteratively looks for dominating sets to fix into bins.
+\begin{algorithmic}[1]
+\State Initialize fixed bins count $j := 0$, Unpacked set $I$
+\Repeat
+    \State Let $i$ be the largest remaining item.
+    \State Find feasible set $F$ containing $i$ that dominates all other sets containing $i$.
+    \State \textbf{Check 1 (Single Item):} If $i$ cannot fit with any other item, $F=\{i\}$.
+    \State \textbf{Check 2 (Pairs):} If $i$ fits with $i'$, and $\{i, i'\}$ fills the bin so well (e.g., $s_i + s_{i'} = C$) that no triplet could be better, $F=\{i, i'\}$.
+    \If{$F \neq \emptyset$}
+        \State Fix Bin $B_{j+1} := F$.
+        \State Remove items in $F$ from $I$.
+    \EndIf
+\Until{No further reductions possible}
+\end{algorithmic}
+This procedure essentially greedily matches items if they form a "perfect" or "dominant" bin, reducing the complexity for the subsequent Branch-and-Bound phase.
+
+\section{The Exact Branch-and-Bound Algorithm}
+The complete Martello-Toth Procedure combines the bounds and reductions into a Depth-First Search (DFS).
+
+\subsection{Algorithm Steps}
+\begin{enumerate}
+    \item \textbf{Initialization:}
+    \begin{itemize}
+        \item Sort items $s_1 \ge s_2 \dots \ge s_n$.
+        \item Calculate global lower bound $LB = L_2$.
+        \item Calculate heuristic upper bound $UB$ (using First-Fit Decreasing or Best-Fit Decreasing).
+        \item If $LB == UB$, the heuristic solution is optimal. STOP.
+    \end{itemize}
+
+    \item \textbf{Reduction:}
+    \begin{itemize}
+        \item Apply Procedure REDUCTION to fix easy bins. Update problem size and $LB$.
+    \end{itemize}
+
+    \item \textbf{Branching (Backtracking):}
+    \begin{itemize}
+        \item MTP builds a solution bin by bin.
+        \item For the current bin, it attempts to place the largest available item.
+        \item It then recursively attempts to fill the remaining capacity of the current bin with the next largest fitting items.
+        \item Once a bin is closed, it moves to the next bin.
+    \end{itemize}
+
+    \item \textbf{Pruning (The Critical Step):}
+    At any node in the search tree:
+    \begin{itemize}
+        \item Let $m_{current}$ be the number of bins already fixed/filled.
+        \item Let $I_{rem}$ be the set of remaining unpacked items.
+        \item Calculate the lower bound for the remainder: $L_2(I_{rem})$.
+        \item \textbf{Condition:} If $m_{current} + L_2(I_{rem}) \ge UB$, then this branch cannot lead to a better solution than what we already found. \textbf{PRUNE (Backtrack)}.
+    \end{itemize}
+
+    \item \textbf{Updating Best Solution:}
+    If a valid packing is found with $z$ bins and $z < UB$:
+    \begin{itemize}
+        \item Update $UB = z$.
+        \item If $UB == LB$, STOP (Optimal found).
+    \end{itemize}
+\end{enumerate}
+
+\section{Complexity and Optimality}
+The MTP is an exact algorithm. While the worst-case time complexity is exponential (due to the NP-hardness of BPP), the effective use of the $L_2$ bound allows it to solve many instances efficiently. The $L_2$ bound has an asymptotic worst-case performance ratio of $2/3$, meaning it is tighter than simple volume bounds.
+
+\end{document}
