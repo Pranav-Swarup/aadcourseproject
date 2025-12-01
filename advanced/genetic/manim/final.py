@@ -126,13 +126,14 @@ class HGGA_Full_Process(Scene):
         
         it1 = PackingItem(0, 5, color=GREEN)
         it2 = PackingItem(0, 5, color=GREEN)
-        it1.move_to(ex_bins[0].add_item_visual(it1)); ex_bins[0].add(it1)
-        it2.move_to(ex_bins[0].add_item_visual(it2)); ex_bins[0].add(it2)
+        it1.move_to(ex_bins[0].add_item_visual(it1))
+        it2.move_to(ex_bins[0].add_item_visual(it2))
 
         it3 = PackingItem(0, 5, color=RED)
-        it3.move_to(ex_bins[1].add_item_visual(it3)); ex_bins[1].add(it3)
+        it3.move_to(ex_bins[1].add_item_visual(it3))
         
-        self.play(Create(ex_bins), FadeIn(it1), FadeIn(it2), FadeIn(it3), run_time=1.5)
+        items_vgroup = VGroup(it1, it2, it3)
+        self.play(Create(ex_bins), FadeIn(items_vgroup), run_time=1.5)
 
         score1 = MathTex(r"(\frac{10}{10})^2 = 1.0", color=GREEN, font_size=28).next_to(ex_bins[0], DOWN)
         score2 = MathTex(r"(\frac{5}{10})^2 = 0.25", color=RED, font_size=28).next_to(ex_bins[1], DOWN)
@@ -293,6 +294,7 @@ class HGGA_Full_Process(Scene):
             FadeOut(arrow),
             run_time=2.0
         )
+        target_bin.add(better_item)
         
         # Highlight Bin 0 as Perfect (Green)
         green_bg_1 = Rectangle(height=target_bin.total_height, width=1.0, color=GREEN, fill_opacity=0.3, stroke_width=0).move_to(target_bin.bg.get_center())
@@ -310,6 +312,7 @@ class HGGA_Full_Process(Scene):
             loose_2.animate.move_to(target_reinsert.add_item_visual(loose_2)),
             run_time=1.5
         )
+        target_reinsert.add(loose_2)
         
         # Highlight Bin 2 as Perfect (Green)
         green_bg_2 = Rectangle(height=target_reinsert.total_height, width=1.0, color=GREEN, fill_opacity=0.3, stroke_width=0).move_to(target_reinsert.bg.get_center())
